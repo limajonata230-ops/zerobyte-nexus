@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.12.1';
+const VERSAO = '1.13.0';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -151,10 +151,10 @@ function terrIniciais(put) {
 }
 // ================= dados de demonstração =================
 function seedDemo() {
-  if (store.list('config').length && LS.get('cg_seedv', 1) === 13) return;
-  store.data = {}; LS.set('cg_seedv', 13); S.me = null; S.unlocked = false; S.view = 'inicio';
+  if (store.list('config').length && LS.get('cg_seedv', 1) === 14) return;
+  store.data = {}; LS.set('cg_seedv', 14); S.me = null; S.unlocked = false; S.view = 'inicio';
   const put = (c, id, o) => { (store.data[c] = store.data[c] || {})[id || uid()] = o; };
-  put('config', 'app', { terrCorte: today(), nome: 'Congregação Velha Marabá', horaVmc: '19:30', horaFds: '19:00', relatoriosAtivos: true });
+  put('config', 'app', { gruposInfo: { 'Grupo 1': { superintendente: 'Andrey Menezes' }, 'Grupo 2': { superintendente: 'Marcello Vieira' }, 'Grupo 3': { superintendente: 'Ruan Vieira' } }, terrCorte: today(), nome: 'Congregação Velha Marabá', horaVmc: '19:30', horaFds: '19:00', relatoriosAtivos: true });
   const P = [['Jonata Lima', 'Grupo 1', 'Pioneiro regular', 'Servo ministerial'], ['Andrey Menezes', 'Grupo 1', 'Publicador', 'Ancião'], ['Eduardo Menezes', 'Grupo 1', 'Publicador', 'Servo ministerial'], ['Amanda Silva', 'Grupo 1', 'Pioneiro auxiliar', ''],
     ['Marcello Vieira', 'Grupo 2', 'Publicador', 'Ancião'], ['Adryel dos Prazeres', 'Grupo 2', 'Publicador', 'Servo ministerial'], ['Carlos Pio', 'Grupo 2', 'Publicador', ''], ['Kátria Lima', 'Grupo 2', 'Pioneiro regular', ''],
     ['Ruan Vieira', 'Grupo 3', 'Publicador', 'Ancião'], ['Nicolas dos Anjos', 'Grupo 3', 'Publicador', ''], ['Hugo Santos', 'Grupo 3', 'Publicador', 'Servo ministerial'], ['Ana Beatriz Sousa', 'Grupo 3', 'Publicador', ''], ['Cléo Vieira', 'Grupo 3', 'Publicador', ''], ['Rafael Menezes', 'Grupo 1', 'Publicador', ''], ['Sander Souza', 'Grupo 2', 'Publicador', 'Servo ministerial'], ['Rian Ferreira', 'Grupo 3', 'Publicador', 'Servo ministerial']];
@@ -226,7 +226,7 @@ const ROUTES = {
   anuncios: ['Quadro de anúncios', 'inicio'], eventos: ['Eventos', 'inicio'],
   designacoes: ['Designações mecânicas', 'mais'], publicadores: ['Publicadores', 'mais'], solicitacoes: ['Solicitações', 'mais'], relatorios: ['Relatórios', 'mais'],
   atividade: ['Atividade de campo', 'eu'], historico: ['Histórico de campo', 'eu'], grupo: ['Meu grupo', 'eu'], pedirTerr: ['Pedir território', 'eu'], publicacoes: ['Publicações', 'eu'], relatorio: ['Relatório do mês', 'eu'],
-  mapaGeral: ['Mapa geral', 'territorios'], cargos: ['Cargos e funções', 'mais'],
+  mapaGeral: ['Mapa geral', 'territorios'], cargos: ['Cargos e funções', 'mais'], grupos: ['Grupos de campo', 'mais'],
   config: ['Configurações', 'inicio']
 };
 
@@ -656,6 +656,7 @@ VIEWS.mais = () => {
     (() => { const items = (ver('publicadores.ver') ? linkRow('publicadores', '👥', 'Publicadores', can('publicadores') ? `${D.publicadores.length} cadastrados · cargos e PINs` : `${D.publicadores.length} cadastrados`) : '') +
       (solVer().length ? linkRow('solicitacoes', '📥', 'Solicitações', solVer().map(t => SOL_T[t]).join(', '), pend ? `<span class="count">${pend}</span>` : '') : '') +
       (ver('relatorios') ? linkRow('relatorios', '📊', 'Relatórios da congregação', 'Quem enviou e totais') : '') +
+      (podeGrupos() ? linkRow('grupos', '🧑‍🤝‍🧑', 'Grupos de campo', 'Superintendente de cada grupo') : '') +
       (isSupremo(meP()) ? linkRow('cargos', '🛡️', 'Cargos e funções', 'Criar cargos e escolher o que cada um pode fazer') : '');
       return items ? block('Responsabilidades', items) : ''; })();
 };
@@ -676,6 +677,40 @@ VIEWS.publicadores = () => {
   return Object.keys(gs).sort().map(g => `<div class="sec">${esc(g)} (${gs[g].length})</div><div class="card list">${gs[g].map(p => { const a = aus(p.id);
     return `<div class="it"><div class="sp"><b>${esc(p.nome)}</b><div class="small muted">${esc(p.tipo || '')}${p.priv ? ' · ' + esc(p.priv) : ''}</div>${isSupremo(p) || cargosDe(p).length ? `<div class="small"><b>${esc([isSupremo(p) ? '★ Admin supremo' : '', ...cargosDe(p).map(c => CARGOS[c][0])].filter(Boolean).join(' · '))}</b></div>` : ''}${can('publicadores') && p.pin ? `<div class="small">PIN <b class="pin-tag">${esc(p.pin)}</b></div>` : ''}${a ? `<div class="small"><span class="pill warn">Ausente ${fmtShort(a.inicio)} – ${fmtShort(a.fim)}</span></div>` : ''}</div>${adminBtns('publicadores', p.id)}</div>`; }).join('')}</div>`).join('') + fab('new_publicadores');
 };
+// ---------- grupos de campo (superintendente definido uma vez por grupo) ----------
+const podeGrupos = () => isAdm(meP()) || isElder(meP());
+const todosGrupos = () => [...new Set([...Object.keys(cfg().gruposInfo || {}), ...D.publicadores.map(p => p.grupo)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt', { numeric: true }));
+function supDoGrupo(g) { const i = (cfg().gruposInfo || {})[g]; if (i && i.superintendente) return i.superintendente; const m = D.publicadores.find(p => p.grupo === g && p.superintendente); return m ? m.superintendente : ''; }
+VIEWS.grupos = () => {
+  if (!podeGrupos() && !isSup(meP())) return '<div class="empty">Apenas anciãos e administradores.</div>';
+  const gs = todosGrupos(), ed = podeGrupos() && !isSup(meP());
+  return `<p class="small muted">Escolha o superintendente uma vez por grupo. Vale para todos os irmãos do grupo. O grupo de cada irmão é definido no cadastro dele, em Publicadores.</p>
+    ${gs.length ? `<div class="card list">${gs.map(g => { const n = D.publicadores.filter(p => p.grupo === g).length, sup = supDoGrupo(g);
+      return `<div class="it"><div class="sp"><b>${esc(g)}</b><div class="small muted">${n} publicador(es)</div><div class="small">Superintendente: <b>${sup ? esc(sup) : '— não definido'}</b></div></div>${ed ? `<button class="icon-btn" data-act="grupoEdit" data-id="${esc(g)}" title="Editar">✎</button>` : ''}</div>`; }).join('')}</div>` : '<div class="empty">Nenhum grupo ainda.</div>'}
+    ${ed ? '<button class="btn block" data-act="grupoEdit" style="margin-top:12px">+ Novo grupo</button>' : ''}`;
+};
+function grupoEdit(g) {
+  if (!podeGrupos()) return toast('Sem permissão');
+  const info = { ...(cfg().gruposInfo || {}) }, novo = !g;
+  const m = abrirSheet(`<div class="row"><h2 class="sp" style="margin:0">${novo ? 'Novo grupo' : esc(g)}</h2><button class="btn sm ghost-ink" data-x="1">Fechar</button></div>
+    <div class="f" style="margin-top:12px"><label>Nome do grupo</label><input id="gr_nome" value="${esc(g || '')}" placeholder="Ex.: Grupo 01"></div>
+    <div class="f"><label>Superintendente do grupo</label><input id="gr_sup" list="gr_pubs" value="${esc(g ? supDoGrupo(g) : '')}" placeholder="Comece a digitar o nome"><datalist id="gr_pubs">${D.publicadores.map(p => `<option value="${esc(p.nome)}">`).join('')}</datalist></div>
+    ${!novo ? '<p class="small muted">Se mudar o nome do grupo, o app atualiza o grupo de todos os irmãos e territórios dele.</p>' : ''}
+    <div class="row sheet-actions"><span class="sp"></span><button class="btn" id="gr_ok">Salvar</button></div>`);
+  $('#gr_ok').onclick = async () => {
+    const nome = $('#gr_nome').value.trim(), sup = $('#gr_sup').value.trim();
+    if (!nome) return toast('Dê um nome ao grupo');
+    if (sup && !D.publicadores.some(p => p.nome === sup)) return toast('Escolha um nome da lista de publicadores');
+    if (!novo && nome !== g) {
+      if (todosGrupos().includes(nome)) return toast('Já existe um grupo com esse nome');
+      for (const p of D.publicadores.filter(p => p.grupo === g)) await store.put('publicadores', p.id, { ...p, grupo: nome });
+      for (const t of D.territorios.filter(t => t.grupo === g)) await store.put('territorios', t.id, { ...t, grupo: nome });
+      delete info[g];
+    }
+    info[nome] = { ...(info[nome] || {}), superintendente: sup };
+    await store.put('config', 'app', { ...cfg(), gruposInfo: info }); closeModal(); toast('Grupo salvo');
+  };
+}
 VIEWS.cargos = () => {
   if (!isSupremo(meP())) return '<div class="empty">Só o admin supremo gerencia os cargos.</div>';
   const ex = cfg().cargosExtra || {}, usa = k => D.publicadores.filter(p => (p.cargos || []).includes(k)).length;
@@ -776,7 +811,7 @@ VIEWS.historico = () => {
 const minhasSol = tipo => D.solicitacoes.filter(s => s.pub === S.me && s.tipo === tipo).sort((a, b) => (b.criado || '').localeCompare(a.criado || ''));
 const solList = tipo => { const l = minhasSol(tipo); return l.length ? `<div class="sec">Minhas solicitações</div><div class="card list">${l.map(s => `<div class="it"><div class="sp small">${solDesc(s)}<div class="muted">${fmt(s.criado)}</div></div><span class="pill ${s.status === 'pendente' ? 'warn' : s.status === 'aprovado' ? 'ok' : 'bad'}">${esc(s.status)}</span>${s.status === 'pendente' ? `<button class="icon-btn" data-act="delSol" data-id="${esc(s.id)}">✕</button>` : ''}</div>`).join('')}</div>` : ''; };
 VIEWS.grupo = () => { const me = meP(); const g = me.grupo; if (!g) return '<div class="empty">Você ainda não está em um grupo.</div>';
-  const membros = pubs().filter(p => p.grupo === g); const sup = membros[0] && membros[0].superintendente;
+  const membros = pubs().filter(p => p.grupo === g); const sup = supDoGrupo(g);
   const saidas = D.saidas.filter(s => s.grupo === g || s.grupo === 'Todos');
   const terrs = D.territorios.filter(t => t.grupo === g);
   return `<div class="card"><h3>${esc(g)}</h3>${sup ? `<div class="small">Superintendente: <b>${nameTag(sup)}</b></div>` : ''}<div class="small muted">${membros.length} publicadores · ${terrs.length} territórios</div></div>
@@ -974,7 +1009,7 @@ const FORMS = {
   carrinho: { title: 'Horário do carrinho', fields: [['data', 'Data', 'date'], ['hora', 'Horário (ex.: 07:00 – 09:00)', 'text'], ['local', 'Local', 'text'], ['vagas', 'Vagas', 'number'], ['inscritos', 'Inscritos (separados por vírgula)', 'csv']] },
   anuncios: { title: 'Quadro de anúncios', fields: [['tipo', 'Tipo', 'select', ['Anúncio', 'Documento', 'Evento']], ['titulo', 'Título', 'text'], ['texto', 'Texto', 'textarea'], ['data', 'Data do evento / anúncio', 'date'], ['ate', 'Mostrar até (depois é apagado sozinho)', 'date'], ['cancela', 'Evento substitui as reuniões da semana (assembleia, congresso)', 'check']] },
   programas: { title: 'Programação personalizada', fields: [['titulo', 'Título', 'text'], ['data', 'Data', 'date'], ['texto', 'Programação (uma linha por item)', 'textarea']] },
-  publicadores: { title: 'Publicador', fields: [['nome', 'Nome', 'text'], ['grupo', 'Grupo', 'grupo'], ['superintendente', 'Superintendente do grupo', 'pub'], ['tipo', 'Tipo', 'select', ['Publicador', 'Pioneiro auxiliar', 'Pioneiro regular', 'Publicador não batizado']], ['priv', 'Privilégio', 'select', ['', 'Servo ministerial', 'Ancião']], ['cargos', 'Cargos no app', 'cargos'], ['pin', 'PIN pessoal', 'pinview']] },
+  publicadores: { title: 'Publicador', fields: [['nome', 'Nome', 'text'], ['grupo', 'Grupo', 'grupo'], ['tipo', 'Tipo', 'select', ['Publicador', 'Pioneiro auxiliar', 'Pioneiro regular', 'Publicador não batizado']], ['priv', 'Privilégio', 'select', ['', 'Servo ministerial', 'Ancião']], ['cargos', 'Cargos no app', 'cargos'], ['pin', 'PIN pessoal', 'pinview']] },
   territorios: { title: 'Território', fields: [['numero', 'Número', 'text'], ['nome', 'Bairro / nome', 'text'], ['grupo', 'Grupo', 'grupo'], ['imagem', 'Imagem do mapa', 'image'], ['dirigente', 'Dirigente', 'pub'], ['inicio', 'Data de início', 'date'], ['termino', 'Data de término', 'date']] }
 };
 const nextDow = (dow) => { const d = parse(today()); while (d.getDay() !== dow) d.setDate(d.getDate() + 1); return iso(d); };
@@ -987,7 +1022,7 @@ const partRow = p => `<div class="prow"><div class="row"><select class="p_s">${O
 
 function openForm(col, item) {
   const F = FORMS[col], v = item || (DEFAULTS[col] ? DEFAULTS[col]() : {});
-  const grupos = [...new Set(D.publicadores.map(p => p.grupo).concat(D.territorios.map(t => t.grupo)).filter(Boolean))].sort();
+  const grupos = [...new Set(D.publicadores.map(p => p.grupo).concat(D.territorios.map(t => t.grupo), Object.keys(cfg().gruposInfo || {})).filter(Boolean))].sort();
   const field = ([k, label, type, opts]) => {
     const val = v[k] ?? '';
     if (type === 'parts') return `<div class="f parts"><label>${label}</label><div id="ff_parts">${(v.partes || []).map(partRow).join('')}</div><button type="button" class="btn sm sec2" id="ff_addpart">+ Parte</button></div>`;
@@ -1389,7 +1424,7 @@ const ACTIONS = {
         if (lp) for (const n of notasDe(id)) await store.del('terrNotas', n.id);
         toast('Território concluído!'); }, 'Terminei');
   },
-  cargoEdit: id => cargoEdit(id), terrMapa: id => terrMapa(id), terrNotas: id => terrNotas(id), ovGps: () => ovGps(),
+  cargoEdit: id => cargoEdit(id), grupoEdit: id => grupoEdit(id), terrMapa: id => terrMapa(id), terrNotas: id => terrNotas(id), ovGps: () => ovGps(),
   zoom: id => { const t = D.territorios.find(x => x.id === id); const m = $('#modal'); m.innerHTML = `<div class="sheet"><h2>Território ${esc(t.numero)}</h2><img src="${esc(t.imagem)}" style="width:100%"><button class="btn block" style="margin-top:10px" id="zz">Fechar</button></div>`; m.classList.remove('hidden'); $('#zz').onclick = closeModal; m.onclick = e => { if (e.target === m) closeModal(); }; },
   trocar: () => { S.me = null; LS.set('cg_me', null); render(); },
   sair: () => { S.me = null; LS.set('cg_me', null); render(); },
