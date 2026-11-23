@@ -7,7 +7,7 @@ const sa = process.env.FIREBASE_SA;
 if (!sa) { console.log('Segredo FIREBASE_SA não configurado — nada a enviar.'); process.exit(0); }
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(sa)) });
 const db = admin.firestore();
-const URL_APP = 'https://limajonata230-ops.github.io/zerobyte-nexus/';
+const URL_APP = 'https://zerobyte-nexus.web.app/';
 const TESTE = process.env.TESTE_PARA || '';   // nome de uma pessoa: manda só um aviso de teste para ela
 
 const hojeBR = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);

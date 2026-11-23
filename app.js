@@ -316,7 +316,7 @@ function pushGateHTML(st) {
   if (st === 'ios-install') corpo = `<p class="pin-lead">No iPhone, as notificações só funcionam com o app na tela de início.</p>
       <ol class="gate-steps"><li>Toque no botão <b>Compartilhar</b> <span class="ios-share">⬆︎</span> do Safari.</li><li>Escolha <b>Adicionar à Tela de Início</b> › <b>Adicionar</b>.</li><li>Abra o <b>ZeroByte Nexus</b> pelo ícone novo e ative as notificações.</li></ol>`;
   else if (st === 'unsupported') corpo = `<p class="pin-lead">Este navegador não recebe notificações.</p><p class="small muted" style="text-align:center">No Android, instale o app pelo botão abaixo ou abra no <b>Chrome</b>. No iPhone, abra no <b>Safari</b>.</p>
-      ${/Android/i.test(navigator.userAgent) ? '<a class="btn block" style="text-decoration:none;text-align:center" href="https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZeroByte-Nexus.apk">📲 Baixar o app para Android</a>' : ''}`;
+      ${/Android/i.test(navigator.userAgent) ? '<a class="btn block" style="text-decoration:none;text-align:center" href="ZeroByte-Nexus.apk">📲 Baixar o app para Android</a>' : ''}`;
   else if (negado) corpo = `<p class="pin-lead">As notificações estão bloqueadas.</p><p class="small muted" style="text-align:center">Para usar o app, libere assim:</p><ol class="gate-steps">${passos}</ol>
       <button class="btn block" id="pg_retry">Já liberei</button>`;
   else corpo = `<p class="pin-lead">O app avisa você das suas <b>partes nas reuniões</b>, designações e saídas de campo.</p>
@@ -412,7 +412,7 @@ function loginHTML() {
         <div class="pin-boxes" id="pin_boxes">${'<i></i>'.repeat(4)}</div>
         <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-k="${n}">${n}</button>`).join('')}<span></span><button data-k="0">0</button><button data-k="del" aria-label="Apagar">⌫</button></div>
         <p class="small muted pin-help">Não sabe seu PIN? Peça a um administrador da congregação.</p>
-        ${/Android/i.test(navigator.userAgent) && !window.Capacitor ? '<a class="btn sm ghost-ink" style="margin-top:10px;text-decoration:none" href="https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZeroByte-Nexus.apk">📲 Baixar o app para Android</a>' : ''}
+        ${/Android/i.test(navigator.userAgent) && !window.Capacitor ? '<a class="btn sm ghost-ink" style="margin-top:10px;text-decoration:none" href="ZeroByte-Nexus.apk">📲 Baixar o app para Android</a>' : ''}
         ${demo}
       </div></div>`;
 }

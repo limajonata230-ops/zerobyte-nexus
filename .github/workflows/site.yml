@@ -1,0 +1,34 @@
+name: Publicar site (zerobyte-nexus.web.app)
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ['Gerar APK Android']
+    types: [completed]
+  workflow_dispatch:
+
+concurrency: { group: site, cancel-in-progress: true }
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Montar a pasta do site
+        run: |
+          mkdir public
+          cp -r index.html style.css app.js config.js sw.js manifest.json terrgeo.js icons img public/
+          curl -fsSL -o public/ZeroByte-Nexus.apk https://github.com/${{ github.repository }}/releases/download/android-latest/ZeroByte-Nexus.apk || echo "APK ainda não existe"
+          ls -la public
+      - name: Publicar no Firebase Hosting
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+        run: |
+          if [ -z "$FIREBASE_SA" ]; then echo "Segredo FIREBASE_SA ainda não configurado"; exit 1; fi
+          echo "$FIREBASE_SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx -y firebase-tools@13 deploy --only hosting --project zerobyte-nexus --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
