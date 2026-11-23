@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.13.4';
+const VERSAO = '1.13.5';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -1313,14 +1313,23 @@ function nearestDate(day, month, ref) {
   return iso(best);
 }
 function secOf(line) {
-  const u = line.toUpperCase();
-  if (u.includes('TESOUROS DA PALAVRA')) return 'tesouros';
-  if (u.includes('FAÇA SEU MELHOR') || u.includes('FACA SEU MELHOR') || u.includes('EMPENHE-SE NO MINIST')) return 'ministerio';
-  if (u.includes('NOSSA VIDA CRIST')) return 'vida';
+  const u = line.toUpperCase(), c = u.replace(/\s+/g, '');
+  if (u.includes('TESOUROS DA PALAVRA') || c === 'TESOUROSDA' || c.startsWith('TESOUROSDAPALAVRA')) return 'tesouros';
+  if (u.includes('FAÇA SEU MELHOR') || u.includes('FACA SEU MELHOR') || u.includes('EMPENHE-SE NO MINIST') || c.startsWith('FAÇASEUMELHOR') || c.startsWith('FACASEUMELHOR')) return 'ministerio';
+  if (u.includes('NOSSA VIDA CRIST') || c === 'VIDACRISTÃ' || c === 'VIDACRISTA' || c.startsWith('NOSSAVIDACRIST')) return 'vida';
   return null;
 }
+function arrumaCabecalho(l) {
+  // PDF com letras espaçadas: "2 - 8 D E N OVEMB RO J E R E M IAS 49 - 5 0" -> "2-8 DE NOVEMBRO JEREMIAS 49-50"
+  const MESES = 'JANEIRO|FEVEREIRO|MARÇO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO';
+  const c = l.replace(/(\d)\s+\d{1,2}$/, '$1').replace(/^\d{1,2}\s+(?=\d{1,2}\s*[-–—]|\d{1,2}\s*D\s*E\s)/, '').replace(/\s+/g, '').toUpperCase();
+  const m = c.match(new RegExp(`^(\\d{1,2})(?:DE(${MESES}))?[-–—](\\d{1,2})DE(${MESES})(.*)$`));
+  if (!m) return l;
+  const resto = m[5].replace(/^DE\d{4}/, '').replace(/([A-ZÀ-Ú])(\d)/g, '$1 $2').replace(/,(?=\S)/g, ', ').replace(/;(?=\S)/g, '; ');
+  return `${m[1]}${m[2] ? ' DE ' + m[2] : ''}-${m[3]} DE ${m[4]}${resto ? ' ' + resto : ''}`;
+}
 function parseApostila(text, ref = today()) {
-  const lines = String(text).replace(/\r/g, '').split(/\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const lines = String(text).replace(/\r/g, '').split(/\n/).map(l => arrumaCabecalho(l.replace(/\s+/g, ' ').trim())).filter(Boolean);
   const weeks = []; let w = null, sec = null, next = 1;
   const minIn = i => { for (let k = i; k < Math.min(i + 3, lines.length); k++) { const m = lines[k].match(/\((\d{1,2})\s*min/i); if (m) return Number(m[1]); if (k > i && /^\d{1,2}\.\s/.test(lines[k])) break; } return 0; };
   for (let i = 0; i < lines.length; i++) {
@@ -1329,19 +1338,23 @@ function parseApostila(text, ref = today()) {
       const mEnd = MES_IDX[dm[4].toLowerCase()], mStart = dm[2] && MES_IDX[dm[2].toLowerCase()] !== undefined ? MES_IDX[dm[2].toLowerCase()] : mEnd;
       const start = dm[5] ? iso(new Date(Number(dm[5]) - (mStart > mEnd ? 1 : 0), mStart, Number(dm[1]))) : nearestDate(Number(dm[1]), mStart, ref);
       w = { semana: monday(start), titulo: L, leitura: '', canticos: [], partes: [] }; weeks.push(w); sec = null; next = 1;
+      const resto = L.slice(dm[0].length).trim(); if (resto.length > 3 && /\d/.test(resto)) { w.leitura = resto.toUpperCase(); continue; }
       const nx = lines[i + 1] || '';
       if (nx.length < 45 && /\d/.test(nx) && !/c[âa]ntico|^\d{1,2}\.\s/i.test(nx) && !secOf(nx)) { w.leitura = nx.toUpperCase(); i++; }
       continue;
     }
     if (!w) continue;
     const s2 = secOf(L); if (s2) { sec = s2; continue; }
-    (L.match(/c[âa]ntico\s+(\d{1,3})/gi) || []).forEach(c => w.canticos.push(c.match(/\d+/)[0]));
+    (L.match(/c[âa]ntico\s+(\d{1,3})/gi) || []).forEach(c => { const n = c.match(/\d+/)[0];
+      if (/coment[áa]rios iniciais/i.test(L)) w.cIni = w.cIni || n; else if (/coment[áa]rios finais/i.test(L)) w.cFim = n; else w.cMeio = w.cMeio || n; w.canticos.push(n); });
     const pm = sec && L.match(/^(\d{1,2})\.\s*(.+)$/);
     if (pm && Number(pm[1]) === next) {
-      const t = pm[2].replace(/\s*\(\d{1,2}\s*min\.?\).*$/i, '').trim();
+      let t = pm[2]; for (let k = 1; k <= 2 && !/\(\d{1,2}\s*min/i.test(t) && lines[i + k] && !/^\d{1,2}\.\s/.test(lines[i + k]); k++) t += ' ' + lines[i + k];
+      t = t.replace(/\s*\(\d{1,2}\s*min\.?\).*$/i, '').trim();
       w.partes.push({ s: sec, t, m: minIn(i) }); next++;
     }
   }
+  weeks.forEach(x => { if (x.cIni || x.cMeio || x.cFim) x.canticos = [x.cIni || x.canticos[0] || '', x.cMeio || '', x.cFim || ''].filter((v, i, a) => i < 2 || v); });
   const byWeek = {};
   weeks.filter(x => x.partes.length >= 3).forEach(x => { if (!byWeek[x.semana] || byWeek[x.semana].partes.length < x.partes.length) byWeek[x.semana] = x; });
   return Object.values(byWeek).sort((a, b) => a.semana.localeCompare(b.semana));
@@ -1351,22 +1364,38 @@ function htmlToText(html) {
   doc.querySelectorAll('p,h1,h2,h3,h4,h5,li,header,section,div,br,tr').forEach(el => el.insertAdjacentText('beforebegin', '\n'));
   return doc.body ? doc.body.textContent : '';
 }
-// texto do PDF na ordem de leitura (uma linha por linha do PDF; colunas lidas separadas)
+// texto do PDF na ordem de leitura: junta letras soltas, encaixa os acentos e lê cada coluna separada
 async function pdfTexto(buf) {
   if (!window.pdfjsLib) { await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
-  const doc = await pdfjsLib.getDocument({ data: buf }).promise; const out = [];
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise, out = [];
+  const MARCA = { '´': '́', '`': '̀', '˜': '̃', '~': '̃', 'ˆ': '̂', '^': '̂', '¸': '̧', '¨': '̈' };
   for (let p = 1; p <= doc.numPages; p++) {
     const pg = await doc.getPage(p), W = pg.getViewport({ scale: 1 }).width, tc = await pg.getTextContent();
-    const its = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ x: i.transform[4], y: i.transform[5], t: i.str }));
-    // separa em colunas quando a página tem texto dos dois lados
-    const meio = W / 2, esq = its.filter(i => i.x < meio - 10), dir = its.filter(i => i.x >= meio - 10);
-    const blocos = esq.length > 8 && dir.length > 8 ? [esq, dir] : [its];
-    for (const b of blocos) {
-      const linhas = {}; b.forEach(i => { const k = Math.round(i.y / 2.5); (linhas[k] = linhas[k] || []).push(i); });
-      Object.keys(linhas).map(Number).sort((a, c) => c - a).forEach(k => out.push(linhas[k].sort((a, c) => a.x - c.x).map(i => i.t).join(' ').replace(/\s+/g, ' ').trim()));
-    }
+    let its = tc.items.map(i => ({ t: i.str.replace(/[\u0000-\u001f]/g, ''), x: i.transform[4], y: i.transform[5], w: i.width, fs: Math.abs(i.transform[3]) || 10 })).filter(i => i.t);
+    const acentos = its.filter(i => i.t.trim().length === 1 && MARCA[i.t.trim()]), base = its.filter(i => !acentos.includes(i) && i.t.trim());
+    base.forEach(b => b.ch = [...b.t].map(c => [c]));
+    for (const a of acentos) { const cx = a.x + (a.w || a.fs * .3) / 2, ced = a.t.trim() === '¸';
+      let best = null, bd = 1e9;
+      for (const b of base) { if (cx < b.x - 1 || cx > b.x + b.w + 1) continue; const dy = ced ? b.y - a.y : a.y - b.y; if (dy < (ced ? -b.fs * .4 : -b.fs * .1) || dy > b.fs * 1.1) continue; const d = Math.abs(dy); if (d < bd) { bd = d; best = b; } }
+      if (best) { const k = Math.max(0, Math.min(best.ch.length - 1, Math.floor((cx - best.x) / (best.w || 1) * best.ch.length))); best.ch[k].push(MARCA[a.t.trim()]); } }
+    base.forEach(b => b.t = b.ch.map(c => c.join('')).join(''));
+    const vazio = its.filter(i => !i.t.trim()); its = base.concat(vazio);
+    // monta as linhas da página inteira; linha com um vão grande no meio = duas colunas
+    const meio = W / 2, linhas = [];
+    for (const i of its.slice().sort((a, c) => c.y - a.y || a.x - c.x)) { const L = linhas.find(l => Math.abs(l.y - i.y) < Math.min(l.fs, i.fs) * .45); if (L) L.its.push(i); else linhas.push({ y: i.y, fs: i.fs, its: [i] }); }
+    const txt = arr => { let t = '', fim = null; for (const i of arr) { if (!i.t.trim()) continue; if (fim !== null && i.x - fim > i.fs * .2) t += ' '; t += i.t; fim = i.x + i.w; } return t; };
+    const E = [], D2 = [];
+    linhas.sort((a, c) => c.y - a.y); const topo = linhas.find(L => L.its.some(i => i.t.trim()));
+    linhas.forEach(L => { L.its.sort((a, c) => a.x - c.x); const tx = L.its.filter(i => i.t.trim());
+      if (L === topo) { E.push(txt(L.its)); return; } // cabeçalho da página (data e leitura) vai inteiro
+      const l = tx.filter(i => i.x + i.w / 2 < meio), r = tx.filter(i => i.x + i.w / 2 >= meio);
+      const vao = l.length && r.length ? r[0].x - (l[l.length - 1].x + l[l.length - 1].w) : 0;
+      if (l.length && r.length && vao < L.fs * 1.2) { E.push(txt(L.its)); return; }
+      if (l.length) E.push(txt(L.its.filter(i => i.x + i.w / 2 < meio))); if (r.length) D2.push(txt(L.its.filter(i => i.x + i.w / 2 >= meio))); });
+    [...E, ...D2].forEach(t => out.push(t.replace(/ı(?=[̀-ͯ])/g, 'i').normalize('NFC').replace(/\s+/g, ' ').trim()));
   }
-  return out.join('\n');
+  // junta palavras quebradas com hífen no fim da linha
+  return out.filter(Boolean).join('\n').replace(/([a-záéíóúâêôãõç])-\n([a-záéíóúâêôãõç])/g, '$1$2');
 }
 async function parseEpub(buf, ref) {
   if (!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
@@ -1413,7 +1442,7 @@ function abrirImportar() {
   m.innerHTML = `<div class="sheet"><h2>Importar apostila</h2>
     <p class="small muted" style="margin-top:0">Preenche os temas, a leitura da semana, os cânticos e o tempo de cada parte da reunião Vida e Ministério. As designações que já estiverem preenchidas são mantidas.</p>
     <div class="card"><h3>1. Baixar do jw.org</h3><div class="row"><select id="ap_iss" style="flex:1;border:2px solid var(--ink);padding:9px;background:#fff">${iss.map(k => `<option value="${k}">${esc(issueLabel(k))}</option>`).join('')}</select><button class="btn sm" id="ap_down">Baixar</button></div></div>
-    <div class="card"><h3>2. Arquivo PDF ou EPUB da apostila</h3><p class="small muted" style="margin:0 0 8px">No jw.org ou no JW Library: Apostila Vida e Ministério › baixar em PDF (ou EPUB). Depois escolha o arquivo aqui.</p><input type="file" id="ap_file" accept=".pdf,application/pdf,.epub,application/epub+zip"></div>
+    <div class="card"><h3>2. Arquivo PDF ou EPUB da apostila</h3><p class="small muted" style="margin:0 0 8px">No jw.org ou no JW Library: Apostila Vida e Ministério › baixar em PDF (ou EPUB). Depois escolha o arquivo aqui.</p><input type="file" id="ap_file" accept=".pdf,application/pdf,.epub,application/epub+zip,.jwpub"></div>
     <div class="card"><h3>3. Colar texto do JW Library</h3><p class="small muted" style="margin:0 0 8px">Abra a semana na apostila, selecione todo o texto, copie e cole aqui.</p><textarea id="ap_txt" style="width:100%;min-height:110px;border:2px solid var(--ink);padding:8px" placeholder="23-29 DE NOVEMBRO&#10;LAMENTAÇÕES 1-2&#10;Cântico 28 e oração..."></textarea><button class="btn sm sec2" id="ap_read" style="margin-top:8px">Ler texto</button></div>
     <div id="ap_res"></div>
     <div class="row" style="margin-top:6px"><span class="sp"></span><button class="btn sec2" id="ap_close">Fechar</button></div></div>`;
@@ -1430,7 +1459,9 @@ function abrirImportar() {
   const busy = t => { res.innerHTML = `<div class="banner">${t}</div>`; };
   $('#ap_down').onclick = async () => { busy('Baixando a apostila do jw.org…');
     try { show(await baixarApostila($('#ap_iss').value)); } catch (e) { console.error(e); res.innerHTML = '<div class="banner">Não consegui baixar direto por aqui. Baixe o arquivo EPUB no jw.org e use a opção 2, ou cole o texto na opção 3.</div>'; } };
-  $('#ap_file').onchange = async e => { const f = e.target.files[0]; if (!f) return; busy('Lendo o arquivo…');
+  $('#ap_file').onchange = async e => { const f = e.target.files[0]; if (!f) return;
+    if (/\.jwpub$/i.test(f.name)) { res.innerHTML = '<div class="banner">O arquivo .jwpub é o formato do JW Library e é protegido, o app não consegue abrir. Baixe a apostila em <b>PDF</b> e escolha esse arquivo.</div>'; return; }
+    busy('Lendo o arquivo…');
     try { const buf = await f.arrayBuffer(), pdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf' || new TextDecoder().decode(new Uint8Array(buf.slice(0, 5))) === '%PDF-';
       show(pdf ? parseApostila(await pdfTexto(buf), today()) : await parseEpub(buf, today())); } catch (er) { console.error(er); res.innerHTML = '<div class="banner">Não consegui ler esse arquivo. Ele precisa ser o PDF ou o EPUB da apostila Vida e Ministério.</div>'; } };
   $('#ap_read').onclick = () => show(parseApostila($('#ap_txt').value, today()));
