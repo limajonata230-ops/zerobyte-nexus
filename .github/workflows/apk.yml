@@ -32,7 +32,7 @@ jobs:
             "appName": "ZeroByte Nexus",
             "webDir": "www",
             "backgroundColor": "#0d0d0d",
-            "server": { "url": "https://limajonata230-ops.github.io/zerobyte-nexus/", "androidScheme": "https" },
+            "server": { "url": "https://zerobyte-nexus.web.app/", "androidScheme": "https" },
             "android": { "allowMixedContent": false },
             "plugins": { "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] } }
           }
