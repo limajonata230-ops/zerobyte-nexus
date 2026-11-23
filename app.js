@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.7.0';
+const VERSAO = '1.8.0';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -92,6 +92,18 @@ const CARGOS = {
   carrinho: ['Testemunho público', 'Escala do carrinho'],
   secretario: ['Secretário', 'Relatórios, ausências e pedidos de pioneiro']
 };
+const CARGOS_BASE = Object.keys(CARGOS);
+// funções que podem ser dadas a um cargo criado pelo admin supremo
+const FUNCOES = [['terr.mover', 'Iniciar e terminar territórios'], ['terr.edit', 'Editar territórios e mapas'], ['sol.territorio', 'Atender pedidos de território'],
+  ['sol.publicacoes', 'Atender pedidos de publicações'], ['designacoes', 'Editar designações mecânicas'], ['carrinho', 'Editar escala do testemunho público'],
+  ['saidas', 'Editar saídas de campo'], ['vmc', 'Editar Vida e Ministério'], ['fds', 'Editar reunião de fim de semana'], ['programas', 'Editar programações'],
+  ['anuncios', 'Editar anúncios e eventos'], ['relatorios', 'Ver e arquivar relatórios'], ['sol.ausencia', 'Ver pedidos de ausência'], ['sol.pioneiro', 'Ver pedidos de pioneiro auxiliar'],
+  ['ver.tudo', 'Ver tudo no app (sem editar)']];
+let CARGO_FN = {};
+function syncCargos() {
+  Object.keys(CARGOS).forEach(k => { if (!CARGOS_BASE.includes(k)) delete CARGOS[k]; }); CARGO_FN = {};
+  Object.entries(cfg().cargosExtra || {}).forEach(([k, c]) => { CARGOS[k] = [c.nome, c.desc || (c.funcoes || []).map(f => (FUNCOES.find(x => x[0] === f) || [, f])[1]).join(' · ')]; CARGO_FN[k] = c.funcoes || []; });
+}
 // permissão -> cargos que a têm (o ancião tem todas)
 const PERM = {
   'terr.mover': ['dirigente', 'territorios'], 'terr.edit': ['territorios'], 'sol.territorio': ['territorios'], 'sol.publicacoes': ['publicacoes'],
@@ -101,35 +113,37 @@ const PERM = {
 const isElder = p => !!p && p.priv === 'Ancião';
 const ADMIN_ONLY = ['publicadores'];  // só o Administrador (nem o ancião tem automaticamente)
 const cargosDe = p => ((p && p.cargos) || []).filter(c => CARGOS[c]);
-const isAdm = p => cargosDe(p).includes('admin');
-const temCargo = p => isElder(p) || cargosDe(p).length > 0;
-const can = k => { const p = meP(); if (!p) return false; if (ADMIN_ONLY.includes(k)) return isAdm(p); if (isElder(p)) return true; return (PERM[k] || []).some(c => cargosDe(p).includes(c)); };
+const isSupremo = p => !!(p && p.supremo);
+const isAdm = p => isSupremo(p) || cargosDe(p).includes('admin');
+const temCargo = p => isSupremo(p) || isElder(p) || cargosDe(p).length > 0;
+const fnDe = p => cargosDe(p).flatMap(c => CARGO_FN[c] || []);
+const can = k => { const p = meP(); if (!p) return false; if (isSupremo(p)) return true; if (ADMIN_ONLY.includes(k)) return isAdm(p); if (isElder(p)) return true; return (PERM[k] || []).some(c => cargosDe(p).includes(c)) || fnDe(p).includes(k); };
 const isAdmin = () => isElder(meP());
-const isSup = p => cargosDe(p).includes('superintendente');
+const isSup = p => !isSupremo(p) && (cargosDe(p).includes('superintendente') || fnDe(p).includes('ver.tudo'));
 // ver (sem editar): ancião e superintendente veem tudo; os demais veem o que podem editar
 const VER_EXTRA = { territorios: ['dirigente', 'territorios', 'admin'] };
-const ver = k => { const p = meP(); if (!p) return false; if (isElder(p) || isSup(p)) return true; return can(k) || (VER_EXTRA[k] || []).some(c => cargosDe(p).includes(c)); };
+const ver = k => { const p = meP(); if (!p) return false; if (isSupremo(p) || isElder(p) || isSup(p)) return true; if (k === 'territorios' && (can('terr.mover') || can('terr.edit'))) return true; return can(k) || (VER_EXTRA[k] || []).some(c => cargosDe(p).includes(c)); };
 const solVer = () => ['territorio', 'publicacoes', 'ausencia', 'pioneiro'].filter(t => ver('sol.' + t));
 const isPioneer = p => /pioneiro/i.test((p && p.tipo) || '');
 const KIND_PERM = { territorios: 'terr.edit', saidasAlt: 'saidas' };
 const permOf = kind => KIND_PERM[kind] || kind;
 const solPerms = () => ['territorio', 'publicacoes', 'ausencia', 'pioneiro'].filter(t => can('sol.' + t));
 const genPin = (lista = D.publicadores) => { const used = new Set(lista.map(p => String(p.pin || ''))); let v; do { v = String(Math.floor(1000 + Math.random() * 9000)); } while (used.has(v)); return v; };
-const cargoLabel = p => [isElder(p) ? 'Ancião' : '', ...cargosDe(p).map(c => CARGOS[c][0])].filter(Boolean).join(' · ');
+const cargoLabel = p => [isSupremo(p) ? 'Admin supremo' : '', isElder(p) ? 'Ancião' : '', ...cargosDe(p).map(c => CARGOS[c][0])].filter(Boolean).join(' · ');
 const eventoSemana = s => { if (!s) return null; const a = monday(s), b = addDays(a, 6); return D.anuncios.find(x => x.tipo === 'Evento' && x.data >= a && x.data <= b && x.cancela); };
 
 const TERR_IMG = n => 'img/territorio_' + n + '.jpg';
 // ================= dados de demonstração =================
 function seedDemo() {
-  if (store.list('config').length && LS.get('cg_seedv', 1) === 11) return;
-  store.data = {}; LS.set('cg_seedv', 11); S.me = null; S.unlocked = false; S.view = 'inicio';
+  if (store.list('config').length && LS.get('cg_seedv', 1) === 12) return;
+  store.data = {}; LS.set('cg_seedv', 12); S.me = null; S.unlocked = false; S.view = 'inicio';
   const put = (c, id, o) => { (store.data[c] = store.data[c] || {})[id || uid()] = o; };
   put('config', 'app', { terrCorte: today(), nome: 'Congregação Velha Marabá', horaVmc: '19:30', horaFds: '19:00', relatoriosAtivos: true });
   const P = [['Jonata Lima', 'Grupo 1', 'Pioneiro regular', 'Servo ministerial'], ['Andrey Menezes', 'Grupo 1', 'Publicador', 'Ancião'], ['Eduardo Menezes', 'Grupo 1', 'Publicador', 'Servo ministerial'], ['Amanda Silva', 'Grupo 1', 'Pioneiro auxiliar', ''],
     ['Marcello Vieira', 'Grupo 2', 'Publicador', 'Ancião'], ['Adryel dos Prazeres', 'Grupo 2', 'Publicador', 'Servo ministerial'], ['Carlos Pio', 'Grupo 2', 'Publicador', ''], ['Kátria Lima', 'Grupo 2', 'Pioneiro regular', ''],
     ['Ruan Vieira', 'Grupo 3', 'Publicador', 'Ancião'], ['Nicolas dos Anjos', 'Grupo 3', 'Publicador', ''], ['Hugo Santos', 'Grupo 3', 'Publicador', 'Servo ministerial'], ['Ana Beatriz Sousa', 'Grupo 3', 'Publicador', ''], ['Cléo Vieira', 'Grupo 3', 'Publicador', ''], ['Rafael Menezes', 'Grupo 1', 'Publicador', ''], ['Sander Souza', 'Grupo 2', 'Publicador', 'Servo ministerial'], ['Rian Ferreira', 'Grupo 3', 'Publicador', 'Servo ministerial']];
-  const ROLES = { 'Andrey Menezes': [['admin'], '1111'], 'Hugo Santos': [['superintendente'], '8888'], 'Jonata Lima': [['territorios', 'dirigente'], '2222'], 'Eduardo Menezes': [['publicacoes', 'dirigente'], '3333'], 'Rian Ferreira': [['mecanicas'], '4444'], 'Sander Souza': [['carrinho'], '5555'], 'Carlos Pio': [['dirigente'], '6666'] };
-  P.forEach(([nome, grupo, tipo, priv], i) => { const r = ROLES[nome]; put('publicadores', 'p' + i, { nome, grupo, tipo, priv, superintendente: ['Andrey Menezes', 'Marcello Vieira', 'Ruan Vieira'][Number(grupo.slice(-1)) - 1], cargos: r ? r[0] : [], pin: r ? r[1] : ({ 'Marcello Vieira': '1212', 'Ruan Vieira': '1313' })[nome] || String(7000 + i) }); });
+  const ROLES = { 'Andrey Menezes': [['admin'], '1111'], 'Hugo Santos': [['superintendente'], '8888'], 'Jonata Lima': [['admin', 'territorios', 'dirigente'], '2222'], 'Eduardo Menezes': [['publicacoes', 'dirigente'], '3333'], 'Rian Ferreira': [['mecanicas'], '4444'], 'Sander Souza': [['carrinho'], '5555'], 'Carlos Pio': [['dirigente'], '6666'] };
+  P.forEach(([nome, grupo, tipo, priv], i) => { const r = ROLES[nome]; put('publicadores', 'p' + i, { nome, grupo, tipo, priv, superintendente: ['Andrey Menezes', 'Marcello Vieira', 'Ruan Vieira'][Number(grupo.slice(-1)) - 1], cargos: r ? r[0] : [], ...(nome === 'Jonata Lima' ? { supremo: true } : {}), pin: r ? r[1] : ({ 'Marcello Vieira': '1212', 'Ruan Vieira': '1313' })[nome] || String(7000 + i) }); });
   const seg = monday(today());
   for (let w = 0; w < 4; w++) {
     const qui = addDays(seg, 3 + 7 * w), sab = addDays(seg, 5 + 7 * w);
@@ -209,7 +223,7 @@ const ROUTES = {
   anuncios: ['Quadro de anúncios', 'inicio'], eventos: ['Eventos', 'inicio'],
   designacoes: ['Designações mecânicas', 'mais'], publicadores: ['Publicadores', 'mais'], solicitacoes: ['Solicitações', 'mais'], relatorios: ['Relatórios', 'mais'],
   atividade: ['Atividade de campo', 'eu'], historico: ['Histórico de campo', 'eu'], pioneiro: ['Pioneiro auxiliar', 'eu'], ausencia: ['Ausência', 'eu'], contato: ['Meu contato', 'eu'], emergencia: ['Emergência', 'eu'], grupo: ['Meu grupo', 'eu'], pedirTerr: ['Pedir território', 'eu'], publicacoes: ['Publicações', 'eu'], relatorio: ['Relatório do mês', 'eu'],
-  mapaGeral: ['Mapa geral', 'territorios'],
+  mapaGeral: ['Mapa geral', 'territorios'], cargos: ['Cargos e funções', 'mais'],
   config: ['Configurações', 'inicio']
 };
 
@@ -225,7 +239,7 @@ let backTo = null;
 function render() {
   const app = $('#app');
   if (!meP()) { app.innerHTML = loginHTML(); bindLogin(); return; }
-  TABS = tabsFor();
+  syncCargos(); TABS = tabsFor();
   if (!ROUTES[S.view] || ((S.view === 'territorios' || S.view === 'mapaGeral') && !ver('territorios'))) S.view = 'inicio';
   const [title, parent] = ROUTES[S.view];
   const tab = parent || S.view;
@@ -236,7 +250,7 @@ function render() {
     <header class="top"><div class="kick-row"><span class="kicker">${pad(idx)} · ${esc(TABS[idx - 1][1])}</span><span class="ver">v${VERSAO}</span></div>
       ${parent ? `<button class="back" data-back="1">‹</button>` : ''}
       <h1>${esc(S.view === 'inicio' ? (cfg().nome || 'Congregação') : title)}</h1>
-      ${temCargo(meP()) ? `<span class="badge">${esc(isAdm(meP()) ? 'Admin' : isElder(meP()) ? 'Ancião' : isSup(meP()) ? 'Superintendente' : cargosDe(meP()).length > 1 ? 'Cargos' : CARGOS[cargosDe(meP())[0]][0])}</span>` : ''}
+      ${temCargo(meP()) ? `<span class="badge">${esc(isSupremo(meP()) ? 'Admin supremo' : isAdm(meP()) ? 'Admin' : isElder(meP()) ? 'Ancião' : isSup(meP()) ? 'Superintendente' : cargosDe(meP()).length > 1 ? 'Cargos' : CARGOS[cargosDe(meP())[0]][0])}</span>` : ''}
       ${S.view !== 'config' ? `<button class="gear" data-go="config" aria-label="Configurações">${IC.gear}</button>` : ''}
     </header>
     <main>${store.demo ? '<div class="banner">Modo demonstração: os dados ficam só neste aparelho até conectarmos o banco de dados.</div>' : ''}${body}</main>
@@ -282,7 +296,7 @@ function loginHTML() {
   const c = cfg();
   if (!c.nome || !D.publicadores.length) return `<div class="login">${ART}<h1>Configurar <span>o app</span></h1><p class="muted">Primeiro acesso. Defina os dados da congregação.</p>
       <div class="f"><label>Nome da congregação</label><input id="lg_nome"></div>
-      <div class="f"><label>Seu nome (você entra como ancião e administrador)</label><input id="lg_me"></div>
+      <div class="f"><label>Seu nome (sua conta será o admin supremo)</label><input id="lg_me"></div>
       <button class="btn block" id="lg_setup">Começar</button></div>`;
   if (!S.pinTela) return `<div class="welcome">
       <div class="wl-top">${WELCOME_ART}</div>
@@ -292,7 +306,7 @@ function loginHTML() {
         <p class="wl-sub">Informações na palma da mão</p>
         <button class="btn block wl-go" id="wl_go">Começar <b>→</b></button>
       </div></div>`;
-  const demo = store.demo ? `<details class="pin-demo"><summary>PINs de demonstração</summary><div>1111 Andrey (ancião + admin)<br>1212 Marcello (ancião)<br>2222 Jonata (servo de territórios)<br>3333 Eduardo (servo de publicações)<br>6666 Carlos (dirigente)<br>8888 Hugo (superintendente)<br>7013 Rafael (publicador)<br>7003 Amanda (pioneira)</div></details>` : '';
+  const demo = store.demo ? `<details class="pin-demo"><summary>PINs de demonstração</summary><div>1111 Andrey (ancião + admin)<br>1212 Marcello (ancião)<br>2222 Jonata (admin supremo)<br>3333 Eduardo (servo de publicações)<br>6666 Carlos (dirigente)<br>8888 Hugo (superintendente)<br>7013 Rafael (publicador)<br>7003 Amanda (pioneira)</div></details>` : '';
   return `<div class="pinscreen">
       <header class="top pin-top"><div class="kick-row"><span class="kicker">02 · Entrar</span></div><button class="back" id="pin_back" aria-label="Voltar">‹</button><h1>Seu PIN</h1></header>
       <div class="pin-body">
@@ -309,7 +323,7 @@ function bindLogin() {
     const nome = $('#lg_nome').value.trim(), me = $('#lg_me').value.trim(), padm = genPin();
     if (!nome || !me) return toast('Preencha tudo');
     await store.put('config', 'app', { ...cfg(), nome, horaVmc: '19:30', horaFds: '19:00', relatoriosAtivos: true });
-    const id = await store.put('publicadores', null, { nome: me, grupo: '', tipo: 'Publicador', priv: 'Ancião', cargos: ['admin'], pin: padm });
+    const id = await store.put('publicadores', null, { nome: me, grupo: '', tipo: 'Publicador', priv: '', cargos: ['admin'], supremo: true, pin: padm });
     S.me = id; LS.set('cg_me', id); render();
     ask('Seu PIN pessoal', `<p>O app gerou seu PIN automaticamente:</p><div class="pin-big">${padm}</div><p class="small muted">Anote. É com ele que você entra no app. Como administrador, você vê o PIN de todos em Mais › Publicadores.</p>`, () => true, 'Anotei');
   };
@@ -541,7 +555,8 @@ VIEWS.mais = () => {
     block('Quadro', linkRow('anuncios', '📣', 'Anúncios e documentos', '') + linkRow('eventos', '🏛️', 'Eventos', 'Assembleias, congressos, visitas')) +
     (() => { const items = (ver('publicadores.ver') ? linkRow('publicadores', '👥', 'Publicadores', can('publicadores') ? `${D.publicadores.length} cadastrados · cargos e PINs` : `${D.publicadores.length} cadastrados`) : '') +
       (solVer().length ? linkRow('solicitacoes', '📥', 'Solicitações', solVer().map(t => SOL_T[t]).join(', '), pend ? `<span class="count">${pend}</span>` : '') : '') +
-      (ver('relatorios') ? linkRow('relatorios', '📊', 'Relatórios da congregação', 'Quem enviou e totais') : '');
+      (ver('relatorios') ? linkRow('relatorios', '📊', 'Relatórios da congregação', 'Quem enviou e totais') : '') +
+      (isSupremo(meP()) ? linkRow('cargos', '🛡️', 'Cargos e funções', 'Criar cargos e escolher o que cada um pode fazer') : '');
       return items ? block('Responsabilidades', items) : ''; })();
 };
 VIEWS.designacoes = () => {
@@ -559,8 +574,37 @@ VIEWS.publicadores = () => {
   const gs = {}; pubs().forEach(p => (gs[p.grupo || 'Sem grupo'] = gs[p.grupo || 'Sem grupo'] || []).push(p));
   const aus = id => D.solicitacoes.find(s => s.tipo === 'ausencia' && s.pub === id && s.status !== 'recusado' && s.fim >= today() && s.inicio <= addDays(today(), 30));
   return Object.keys(gs).sort().map(g => `<div class="sec">${esc(g)} (${gs[g].length})</div><div class="card list">${gs[g].map(p => { const a = aus(p.id);
-    return `<div class="it"><div class="sp"><b>${esc(p.nome)}</b><div class="small muted">${esc(p.tipo || '')}${p.priv ? ' · ' + esc(p.priv) : ''}${p.telefone ? ' · ' + esc(p.telefone) : ''}</div>${cargosDe(p).length ? `<div class="small"><b>${esc(cargosDe(p).map(c => CARGOS[c][0]).join(' · '))}</b></div>` : ''}${can('publicadores') && p.pin ? `<div class="small">PIN <b class="pin-tag">${esc(p.pin)}</b></div>` : ''}${a ? `<div class="small"><span class="pill warn">Ausente ${fmtShort(a.inicio)} – ${fmtShort(a.fim)}</span></div>` : ''}</div>${adminBtns('publicadores', p.id)}</div>`; }).join('')}</div>`).join('') + fab('new_publicadores');
+    return `<div class="it"><div class="sp"><b>${esc(p.nome)}</b><div class="small muted">${esc(p.tipo || '')}${p.priv ? ' · ' + esc(p.priv) : ''}${p.telefone ? ' · ' + esc(p.telefone) : ''}</div>${isSupremo(p) || cargosDe(p).length ? `<div class="small"><b>${esc([isSupremo(p) ? '★ Admin supremo' : '', ...cargosDe(p).map(c => CARGOS[c][0])].filter(Boolean).join(' · '))}</b></div>` : ''}${can('publicadores') && p.pin ? `<div class="small">PIN <b class="pin-tag">${esc(p.pin)}</b></div>` : ''}${a ? `<div class="small"><span class="pill warn">Ausente ${fmtShort(a.inicio)} – ${fmtShort(a.fim)}</span></div>` : ''}</div>${adminBtns('publicadores', p.id)}</div>`; }).join('')}</div>`).join('') + fab('new_publicadores');
 };
+VIEWS.cargos = () => {
+  if (!isSupremo(meP())) return '<div class="empty">Só o admin supremo gerencia os cargos.</div>';
+  const ex = cfg().cargosExtra || {}, usa = k => D.publicadores.filter(p => (p.cargos || []).includes(k)).length;
+  return `<p class="small muted">Crie cargos novos e escolha as funções de cada um. Depois, dê o cargo à pessoa em Mais › Publicadores › editar.</p>
+    <div class="sec">Cargos criados por você</div>
+    ${Object.keys(ex).length ? `<div class="card list">${Object.entries(ex).map(([k, c]) => `<div class="it"><div class="sp"><b>${esc(c.nome)}</b><div class="small muted">${(c.funcoes || []).map(f => esc((FUNCOES.find(x => x[0] === f) || [, f])[1])).join(' · ') || 'Nenhuma função'}</div><div class="small">${usa(k)} pessoa(s)</div></div><button class="icon-btn" data-act="cargoEdit" data-id="${esc(k)}" title="Editar">✎</button></div>`).join('')}</div>` : '<div class="empty">Nenhum cargo criado ainda.</div>'}
+    <button class="btn block" data-act="cargoEdit" style="margin:12px 0 18px">+ Criar cargo</button>
+    <div class="sec">Cargos do app</div>
+    <div class="card list"><div class="it"><div class="sp"><b>★ Admin supremo</b><div class="small muted">Você. Acesso total, cria cargos, e ninguém pode alterar ou excluir esta conta.</div></div></div>
+    ${CARGOS_BASE.map(k => `<div class="it"><div class="sp"><b>${esc(CARGOS[k][0])}</b><div class="small muted">${esc(CARGOS[k][1])}</div><div class="small">${usa(k)} pessoa(s)</div></div></div>`).join('')}</div>`;
+};
+function cargoEdit(id) {
+  if (!isSupremo(meP())) return toast('Só o admin supremo');
+  const ex = { ...(cfg().cargosExtra || {}) }, c = (id && ex[id]) || { nome: '', funcoes: [] };
+  const m = abrirSheet(`<div class="row"><h2 class="sp" style="margin:0">${id ? 'Editar cargo' : 'Novo cargo'}</h2><button class="btn sm ghost-ink" data-x="1">Fechar</button></div>
+    <div class="f" style="margin-top:12px"><label>Nome do cargo</label><input id="cg_nome" value="${esc(c.nome)}" placeholder="Ex.: Ajudante de territórios"></div>
+    <div class="f"><label>Funções (o que esse cargo pode fazer)</label>${FUNCOES.map(([k, n]) => `<label class="chk" style="margin-bottom:8px"><input type="checkbox" class="cg_fn" value="${k}" ${(c.funcoes || []).includes(k) ? 'checked' : ''}> ${esc(n)}</label>`).join('')}</div>
+    <div class="row">${id ? '<button class="btn sm ghost-ink" id="cg_del">Excluir cargo</button>' : ''}<span class="sp"></span><button class="btn" id="cg_ok">Salvar</button></div>`);
+  $('#cg_ok').onclick = async () => {
+    const nome = $('#cg_nome').value.trim(), funcoes = $$('.cg_fn:checked', m).map(x => x.value);
+    if (!nome) return toast('Dê um nome ao cargo');
+    if (Object.values(CARGOS).some(([n], i) => n.toLowerCase() === nome.toLowerCase() && Object.keys(CARGOS)[i] !== id)) return toast('Já existe um cargo com esse nome');
+    ex[id || 'c_' + uid().slice(0, 8)] = { nome, funcoes };
+    await store.put('config', 'app', { ...cfg(), cargosExtra: ex }); closeModal(); toast('Cargo salvo');
+  };
+  if (id) $('#cg_del').onclick = async e => { if (!confirmInline(e.currentTarget)) return; delete ex[id];
+    for (const p of D.publicadores.filter(p => (p.cargos || []).includes(id))) await store.put('publicadores', p.id, { ...p, cargos: p.cargos.filter(x => x !== id) });
+    await store.put('config', 'app', { ...cfg(), cargosExtra: ex }); closeModal(); toast('Cargo excluído'); };
+}
 const SOL_T = { pioneiro: 'Pioneiro auxiliar', ausencia: 'Ausência', territorio: 'Território', publicacoes: 'Publicações' };
 const solDesc = s => s.tipo === 'pioneiro' ? `${(s.meses || []).map(mesLabel).join(', ')}${s.continuo ? ' · contínuo' : ''} · ${s.horas || 30} h` :
   s.tipo === 'ausencia' ? `${fmt(s.inicio)} a ${fmt(s.fim)}` : s.tipo === 'territorio' ? (s.numero ? `Território ${s.numero}` : 'Qualquer território disponível') : `${esc(s.qtd || 1)}× ${esc(s.item || '')}${s.idioma ? ' · ' + esc(s.idioma) : ''}`;
@@ -872,7 +916,7 @@ function openForm(col, item) {
     if (type === 'parts') return `<div class="f parts"><label>${label}</label><div id="ff_parts">${(v.partes || []).map(partRow).join('')}</div><button type="button" class="btn sm sec2" id="ff_addpart">+ Parte</button></div>`;
     if (type === 'select') { const list = typeof opts === 'function' ? opts() : opts; return `<div class="f"><label>${label}</label><select id="ff_${k}">${list.map(o => Array.isArray(o) ? `<option value="${esc(o[0])}" ${o[0] === val ? 'selected' : ''}>${esc(o[1])}</option>` : `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`; }
     if (type === 'textarea') return `<div class="f"><label>${label}</label><textarea id="ff_${k}">${esc(val)}</textarea></div>`;
-    if (type === 'cargos') return `<div class="f"><label>${label}</label>${Object.entries(CARGOS).map(([k, [n, d]]) => `<label class="chk" style="margin-bottom:6px"><input type="checkbox" class="ff_cargo" value="${k}" ${(v.cargos || []).includes(k) ? 'checked' : ''}> <span>${esc(n)}<br><span class="small muted">${esc(d)}</span></span></label>`).join('')}<div class="small muted">Anciãos (pelo campo Privilégio) já têm acesso a tudo, menos cargos e PINs, que são só do Administrador.</div></div>`;
+    if (type === 'cargos') return `<div class="f"><label>${label}</label>${v.supremo ? '<div class="small" style="margin-bottom:8px"><b>★ Admin supremo</b>: tem acesso total e ninguém pode alterar esta conta.</div>' : ''}${Object.entries(CARGOS).map(([k, [n, d]]) => `<label class="chk" style="margin-bottom:6px"><input type="checkbox" class="ff_cargo" value="${k}" ${(v.cargos || []).includes(k) ? 'checked' : ''} ${k === 'admin' && !isSupremo(meP()) ? 'disabled' : ''}> <span>${esc(n)}<br><span class="small muted">${esc(d)}</span></span></label>`).join('')}<div class="small muted">Anciãos (pelo campo Privilégio) já têm acesso a tudo, menos cargos e PINs, que são só do Administrador.</div></div>`;
     if (type === 'pinview') return `<div class="f"><label>${label}</label>${val ? `<div class="pin-big">${esc(val)}</div>` : '<div class="small muted">Será gerado automaticamente ao salvar.</div>'}<div class="small muted">Gerado pelo app. Não pode ser alterado.</div></div>`;
     if (type === 'check') return `<div class="f"><label class="chk"><input type="checkbox" id="ff_${k}" ${val ? 'checked' : ''}> ${label}</label></div>`;
     if (type === 'image') return `<div class="f"><label>${label}</label>${val ? `<img class="terr-img" id="ff_imgprev" src="${esc(val)}">` : '<img class="terr-img hidden" id="ff_imgprev">'}<input type="file" accept="image/*" id="ff_imgfile"></div>`;
@@ -890,7 +934,7 @@ function openForm(col, item) {
   $$('.parts', m).forEach(p => p.onclick = e => { if (e.target.classList.contains('rm')) e.target.closest('.prow').remove(); });
   let newImg = null;
   const fi = $('#ff_imgfile'); if (fi) fi.onchange = async () => { if (!fi.files[0]) return; newImg = await resizeImage(fi.files[0], 1000); const pv = $('#ff_imgprev'); pv.src = newImg; pv.classList.remove('hidden'); };
-  if (item) $('#ff_del').onclick = async () => { if (col === 'publicadores' && isAdm(item) && D.publicadores.filter(isAdm).length <= 1) return toast('Não dá para excluir o único administrador'); if (!confirmInline($('#ff_del'))) return; await store.del(col, item.id); closeModal(); toast('Excluído'); if (['vmcDet', 'fdsDet', 'personalizadas'].includes(S.view)) go('programas'); };
+  if (item) $('#ff_del').onclick = async () => { if (col === 'publicadores' && isSupremo(item)) return toast('A conta do admin supremo não pode ser excluída'); if (col === 'publicadores' && isAdm(item) && D.publicadores.filter(isAdm).length <= 1) return toast('Não dá para excluir o único administrador'); if (!confirmInline($('#ff_del'))) return; await store.del(col, item.id); closeModal(); toast('Excluído'); if (['vmcDet', 'fdsDet', 'personalizadas'].includes(S.view)) go('programas'); };
   $('#ff_save').onclick = async () => {
     const o = { ...(item || {}) }; delete o.id;
     F.fields.forEach(([k, , type]) => {
@@ -906,6 +950,9 @@ function openForm(col, item) {
     if (col === 'territorios') { if (!o.numero) return toast('Informe o número'); o.historico = o.historico || []; }
     if (col === 'publicadores' && !o.nome) return toast('Informe o nome');
     if (col === 'publicadores' && !o.pin) o.pin = genPin();
+    if (col === 'publicadores' && item && isSupremo(item) && !isSupremo(meP())) return toast('Só o admin supremo pode alterar esta conta');
+    if (col === 'publicadores') { o.supremo = !!(item && item.supremo); const tinha = !!(item && (item.cargos || []).includes('admin')), tem = (o.cargos || []).includes('admin');
+      if (tinha !== tem && !isSupremo(meP())) return toast('Só o admin supremo pode dar ou tirar o cargo de Administrador'); }
     if (col === 'publicadores' && item && isAdm(item) && !isAdm(o) && D.publicadores.filter(isAdm).length <= 1) return toast('Precisa existir pelo menos um administrador');
     if (!can(permOf(col))) return toast('Sem permissão');
     if (['vmc', 'fds', 'designacoes', 'carrinho', 'saidasAlt'].includes(col) && !o.data) return toast('Informe a data');
@@ -1269,7 +1316,7 @@ const ACTIONS = {
         if (lp) for (const n of notasDe(id)) await store.del('terrNotas', n.id);
         toast('Território concluído!'); }, 'Terminei');
   },
-  terrMapa: id => terrMapa(id), terrNotas: id => terrNotas(id), ovGps: () => ovGps(),
+  cargoEdit: id => cargoEdit(id), terrMapa: id => terrMapa(id), terrNotas: id => terrNotas(id), ovGps: () => ovGps(),
   zoom: id => { const t = D.territorios.find(x => x.id === id); const m = $('#modal'); m.innerHTML = `<div class="sheet"><h2>Território ${esc(t.numero)}</h2><img src="${esc(t.imagem)}" style="width:100%"><button class="btn block" style="margin-top:10px" id="zz">Fechar</button></div>`; m.classList.remove('hidden'); $('#zz').onclick = closeModal; m.onclick = e => { if (e.target === m) closeModal(); }; },
   trocar: () => { S.me = null; LS.set('cg_me', null); render(); },
   sair: () => { S.me = null; LS.set('cg_me', null); render(); },
