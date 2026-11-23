@@ -24,6 +24,7 @@ jobs:
           mkdir -p wrap/www && cd wrap
           npm init -y >/dev/null
           npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          if [ -f $GITHUB_WORKSPACE/android-res/google-services.json ]; then npm i @capacitor/push-notifications@6; echo "com notificações"; fi
           echo '<!doctype html><meta charset="utf-8"><title>ZeroByte Nexus</title>' > www/index.html
           cat > capacitor.config.json <<'JSON'
           {
@@ -32,7 +33,8 @@ jobs:
             "webDir": "www",
             "backgroundColor": "#0d0d0d",
             "server": { "url": "https://limajonata230-ops.github.io/zerobyte-nexus/", "androidScheme": "https" },
-            "android": { "allowMixedContent": false }
+            "android": { "allowMixedContent": false },
+            "plugins": { "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] } }
           }
           JSON
           npx cap add android
@@ -41,8 +43,11 @@ jobs:
         run: |
           cd wrap/android/app/src/main
           rm -rf res/mipmap-anydpi-v26
+          mkdir -p res/drawable && cp $GITHUB_WORKSPACE/android-res/drawable/*.xml res/drawable/
+          if [ -f $GITHUB_WORKSPACE/android-res/google-services.json ]; then cp $GITHUB_WORKSPACE/android-res/google-services.json ../../google-services.json; fi
           for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp $GITHUB_WORKSPACE/android-res/mipmap-$d/*.png res/mipmap-$d/; done
-          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />#' AndroidManifest.xml
+          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />#' AndroidManifest.xml
+          sed -i 's#<application#<application#; s#</application>#    <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_notify" />\n        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@android:color/holo_blue_dark" />\n    </application>#' AndroidManifest.xml
           grep -n permission AndroidManifest.xml
           cd ../..
           V=$(( $(date +%s) / 60 - 29000000 ))

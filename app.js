@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.10.0';
+const VERSAO = '1.11.0';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -238,10 +238,105 @@ function go(v, param = null) {
 }
 let backTo = null;
 
+// ================= notificações (obrigatórias) =================
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const nativo = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const pushPlugin = () => { const C = window.Capacitor; if (!C) return null; return (C.Plugins && C.Plugins.PushNotifications) || null; };
+const pushChave = () => LS.get('cg_push', '');
+function pushState() {
+  if (store.demo) return 'off';
+  if (nativo()) return !pushPlugin() ? 'off' : pushChave().startsWith(S.me + '|') ? 'ok' : 'need';
+  if (!self.FCM_VAPID) return 'off';
+  if (isIOS() && !isStandalone()) return 'ios-install';
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
+  if (Notification.permission === 'denied') return 'denied';
+  if (Notification.permission === 'granted' && pushChave().startsWith(S.me + '|')) return 'ok';
+  return 'need';
+}
+async function salvarToken(token, plat) {
+  const id = token.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 300), me = meP();
+  await store.put('pushTokens', id, { token, pub: S.me, nome: me ? me.nome : '', plat, ts: new Date().toISOString() });
+  LS.set('cg_push', S.me + '|' + id);
+}
+let fcmWeb = null;
+async function tokenWeb() {
+  if (!window.firebase || !firebase.messaging) await loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+  const reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+  fcmWeb = firebase.messaging();
+  const token = await fcmWeb.getToken({ vapidKey: self.FCM_VAPID, serviceWorkerRegistration: reg });
+  if (!token) throw new Error('sem token');
+  fcmWeb.onMessage(p => { const n = p.notification || p.data || {}; if (n.title) { toast(n.title); reg.showNotification(n.title, { body: n.body || '', icon: 'icons/icon-192.png' }); } });
+  return token;
+}
+function tokenNativo() {
+  const P = pushPlugin();
+  return new Promise(async (ok, no) => {
+    const t = setTimeout(() => no(new Error('tempo esgotado')), 20000);
+    await P.removeAllListeners().catch(() => {});
+    await P.addListener('registration', r => { clearTimeout(t); ok(r.value); });
+    await P.addListener('registrationError', e => { clearTimeout(t); no(new Error(e.error || 'erro')); });
+    await P.addListener('pushNotificationReceived', n => toast(n.title || 'Nova notificação'));
+    await P.register();
+  });
+}
+async function ativarPush(btn) {
+  btn && (btn.disabled = true, btn.textContent = 'Ativando…');
+  try {
+    if (nativo()) {
+      const P = pushPlugin(); let st = await P.checkPermissions();
+      if (st.receive !== 'granted') st = await P.requestPermissions();
+      if (st.receive !== 'granted') { S.pushNegado = true; render(); return; }
+      await salvarToken(await tokenNativo(), 'android');
+    } else {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { render(); return; }
+      await salvarToken(await tokenWeb(), isIOS() ? 'ios' : 'web');
+    }
+    toast('Notificações ativadas!'); render();
+  } catch (e) { console.warn(e); toast('Não deu para ativar agora. Verifique a internet e tente de novo.'); btn && (btn.disabled = false, btn.textContent = 'Tentar de novo'); }
+}
+// a cada abertura: renova o token (para não perder avisos) e liga os avisos com o app aberto
+let pushIniciado = false;
+async function renovarPush() {
+  if (pushIniciado || pushState() !== 'ok') return; pushIniciado = true;
+  try { const tk = nativo() ? await tokenNativo() : await tokenWeb(); const id = tk.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 300);
+    if (pushChave() !== S.me + '|' + id || LS.get('cg_push_dia', '') !== today()) { await salvarToken(tk, nativo() ? 'android' : isIOS() ? 'ios' : 'web'); LS.set('cg_push_dia', today()); } } catch (e) { console.warn(e); }
+}
+const BELL = `<svg class="bell-art" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="bh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(110)"><rect width="1.4" height="5" fill="#0d0d0d"/></pattern></defs>
+  <circle cx="80" cy="80" r="70" fill="#1446e0" stroke="#0d0d0d" stroke-width="4"/><circle cx="80" cy="80" r="70" fill="url(#bh)" opacity=".25"/>
+  <g class="bell-swing"><path d="M80 34c-20 0-32 16-32 36v22l-10 14h84l-10-14V70c0-20-12-36-32-36z" fill="#7fd0ff" stroke="#0d0d0d" stroke-width="4" stroke-linejoin="round"/><circle cx="80" cy="30" r="6" fill="#0d0d0d"/><path d="M68 112a12 12 0 0 0 24 0" fill="#fffdf8" stroke="#0d0d0d" stroke-width="4"/></g>
+  <circle cx="114" cy="44" r="13" fill="#ff3b3b" stroke="#0d0d0d" stroke-width="3.5"/><text x="114" y="49.5" text-anchor="middle" font-size="15" font-weight="800" fill="#fff" font-family="Inter,sans-serif">1</text></svg>`;
+function pushGateHTML(st) {
+  const negado = st === 'denied' || S.pushNegado;
+  const passos = nativo() ? '<li>Abra os <b>Ajustes</b> do celular › <b>Apps</b> › <b>ZeroByte Nexus</b>.</li><li>Toque em <b>Notificações</b> e ligue a chave.</li>'
+    : isIOS() ? '<li>Abra os <b>Ajustes</b> do iPhone › <b>Notificações</b> › <b>ZeroByte Nexus</b>.</li><li>Ligue <b>Permitir Notificações</b>.</li>'
+    : '<li>Toque no <b>cadeado</b> ao lado do endereço do site.</li><li>Em <b>Notificações</b>, escolha <b>Permitir</b>.</li>';
+  let corpo;
+  if (st === 'ios-install') corpo = `<p class="pin-lead">No iPhone, as notificações só funcionam com o app na tela de início.</p>
+      <ol class="gate-steps"><li>Toque no botão <b>Compartilhar</b> <span class="ios-share">⬆︎</span> do Safari.</li><li>Escolha <b>Adicionar à Tela de Início</b> › <b>Adicionar</b>.</li><li>Abra o <b>ZeroByte Nexus</b> pelo ícone novo e ative as notificações.</li></ol>`;
+  else if (st === 'unsupported') corpo = `<p class="pin-lead">Este navegador não recebe notificações.</p><p class="small muted" style="text-align:center">No Android, instale o app pelo botão abaixo ou abra no <b>Chrome</b>. No iPhone, abra no <b>Safari</b>.</p>
+      ${/Android/i.test(navigator.userAgent) ? '<a class="btn block" style="text-decoration:none;text-align:center" href="https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZeroByte-Nexus.apk">📲 Baixar o app para Android</a>' : ''}`;
+  else if (negado) corpo = `<p class="pin-lead">As notificações estão bloqueadas.</p><p class="small muted" style="text-align:center">Para usar o app, libere assim:</p><ol class="gate-steps">${passos}</ol>
+      <button class="btn block" id="pg_retry">Já liberei</button>`;
+  else corpo = `<p class="pin-lead">O app avisa você das suas <b>partes nas reuniões</b>, designações e saídas de campo.</p>
+      <p class="small muted" style="text-align:center;margin-top:-8px">Para usar o ZeroByte Nexus, é preciso ativar as notificações.</p>
+      <button class="btn block wl-go" id="pg_go">🔔 Ativar notificações</button>`;
+  return `<div class="pinscreen"><header class="top pin-top"><div class="kick-row"><span class="kicker">03 · Avisos</span></div><h1>Notificações</h1></header>
+    <div class="pin-body gate">${BELL}${corpo}<button class="lnk" id="pg_sair" style="margin-top:22px">Entrar com outro PIN</button></div></div>`;
+}
+function bindPushGate() {
+  const g = $('#pg_go'); if (g) g.onclick = () => ativarPush(g);
+  const r = $('#pg_retry'); if (r) r.onclick = () => { S.pushNegado = false; if (nativo()) ativarPush(r); else location.reload(); };
+  $('#pg_sair').onclick = () => { S.me = null; LS.set('cg_me', null); S.pinTela = true; render(); };
+}
+
 // ================= render =================
 function render() {
   const app = $('#app');
   if (!meP()) { app.innerHTML = loginHTML(); bindLogin(); return; }
+  const ps = pushState(); if (ps !== 'ok' && ps !== 'off') { app.innerHTML = pushGateHTML(ps); bindPushGate(); return; }
+  if (ps === 'ok') setTimeout(renovarPush, 1500);
   syncCargos(); TABS = tabsFor();
   if (!ROUTES[S.view] || ((S.view === 'territorios' || S.view === 'mapaGeral') && !ver('territorios'))) S.view = 'inicio';
   const [title, parent] = ROUTES[S.view];

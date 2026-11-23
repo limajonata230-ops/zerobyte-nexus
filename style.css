@@ -315,3 +315,12 @@ nav.tabs button span{font-size:9px;letter-spacing:0;white-space:nowrap}
 .pin-demo div{margin-top:6px;line-height:1.6}
 .wl-h{font-size:58px;margin-bottom:8px}
 .wl-sub{margin:0 0 24px;font-size:15px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.9}
+/* tela de notificações */
+.gate .bell-art{width:150px;height:150px;margin:0 0 18px;filter:drop-shadow(5px 5px 0 var(--ink))}
+.bell-swing{transform-origin:80px 30px;animation:ring 2.4s ease-in-out infinite}
+@keyframes ring{0%,60%,100%{transform:rotate(0)}65%{transform:rotate(14deg)}72%{transform:rotate(-12deg)}79%{transform:rotate(8deg)}86%{transform:rotate(-5deg)}}
+.gate .btn.block{max-width:340px;width:100%}
+.gate-steps{max-width:340px;margin:4px 0 20px;padding-left:22px;line-height:1.55;font-size:14.5px}
+.gate-steps li{margin-bottom:6px}
+.ios-share{display:inline-block;border:2px solid var(--ink);padding:0 5px;font-size:12px;line-height:1.4}
+.gate .wl-go{border-color:var(--ink);box-shadow:6px 6px 0 var(--ink)}

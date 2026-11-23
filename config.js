@@ -1,6 +1,6 @@
 // Configuração do Firebase (projeto zerobyte-nexus).
 // Se for null, o app roda em MODO DEMONSTRAÇÃO (dados só no aparelho).
-window.FIREBASE_CONFIG = {
+self.FIREBASE_CONFIG = {
   apiKey: "AIzaSyCTfPyqKF8G5f7cTO4ZEQvxElHM8SnPyEs",
   authDomain: "zerobyte-nexus.firebaseapp.com",
   projectId: "zerobyte-nexus",
@@ -8,3 +8,7 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "71417668327",
   appId: "1:71417668327:web:d8428e17c08b1c7830b842"
 };
+
+// Chave pública "Certificado push da Web" (Firebase › Configurações do projeto › Cloud Messaging).
+// Enquanto for null, o navegador não pede notificações.
+self.FCM_VAPID = null;
