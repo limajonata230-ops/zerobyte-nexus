@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.9.0';
+const VERSAO = '1.10.0';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -90,14 +90,14 @@ const CARGOS = {
   publicacoes: ['Servo de publicações', 'Atende pedidos de publicações'],
   mecanicas: ['Designações mecânicas', 'Indicadores, áudio e vídeo, microfones, palco'],
   carrinho: ['Testemunho público', 'Escala do carrinho'],
-  secretario: ['Secretário', 'Relatórios, ausências e pedidos de pioneiro']
+  secretario: ['Secretário', 'Relatórios da congregação']
 };
 const CARGOS_BASE = Object.keys(CARGOS);
 // funções que podem ser dadas a um cargo criado pelo admin supremo
 const FUNCOES = [['terr.mover', 'Iniciar e terminar territórios'], ['terr.edit', 'Editar territórios e mapas'], ['sol.territorio', 'Atender pedidos de território'],
   ['sol.publicacoes', 'Atender pedidos de publicações'], ['designacoes', 'Editar designações mecânicas'], ['carrinho', 'Editar escala do testemunho público'],
   ['saidas', 'Editar saídas de campo'], ['vmc', 'Editar Vida e Ministério'], ['fds', 'Editar reunião de fim de semana'], ['programas', 'Editar programações'],
-  ['anuncios', 'Editar anúncios e eventos'], ['relatorios', 'Ver e arquivar relatórios'], ['sol.ausencia', 'Ver pedidos de ausência'], ['sol.pioneiro', 'Ver pedidos de pioneiro auxiliar'],
+  ['anuncios', 'Editar anúncios e eventos'], ['relatorios', 'Ver e arquivar relatórios'],
   ['ver.tudo', 'Ver tudo no app (sem editar)']];
 let CARGO_FN = {};
 function syncCargos() {
@@ -107,7 +107,7 @@ function syncCargos() {
 // permissão -> cargos que a têm (o ancião tem todas)
 const PERM = {
   'terr.mover': ['dirigente', 'territorios'], 'terr.edit': ['territorios'], 'sol.territorio': ['territorios'], 'sol.publicacoes': ['publicacoes'],
-  designacoes: ['mecanicas'], carrinho: ['carrinho'], relatorios: ['secretario'], 'sol.ausencia': ['secretario'], 'sol.pioneiro': ['secretario'],
+  designacoes: ['mecanicas'], carrinho: ['carrinho'], relatorios: ['secretario'],
   saidas: ['territorios', 'admin'], vmc: [], fds: [], programas: [], anuncios: [], config: [], publicadores: ['admin'], 'publicadores.ver': ['admin']
 };
 const isElder = p => !!p && p.priv === 'Ancião';
@@ -123,11 +123,11 @@ const isSup = p => !isSupremo(p) && (cargosDe(p).includes('superintendente') || 
 // ver (sem editar): ancião e superintendente veem tudo; os demais veem o que podem editar
 const VER_EXTRA = { territorios: ['dirigente', 'territorios', 'admin'] };
 const ver = k => { const p = meP(); if (!p) return false; if (isSupremo(p) || isElder(p) || isSup(p)) return true; if (k === 'territorios' && (can('terr.mover') || can('terr.edit'))) return true; return can(k) || (VER_EXTRA[k] || []).some(c => cargosDe(p).includes(c)); };
-const solVer = () => ['territorio', 'publicacoes', 'ausencia', 'pioneiro'].filter(t => ver('sol.' + t));
+const solVer = () => ['territorio', 'publicacoes'].filter(t => ver('sol.' + t));
 const isPioneer = p => /pioneiro/i.test((p && p.tipo) || '');
 const KIND_PERM = { territorios: 'terr.edit', saidasAlt: 'saidas' };
 const permOf = kind => KIND_PERM[kind] || kind;
-const solPerms = () => ['territorio', 'publicacoes', 'ausencia', 'pioneiro'].filter(t => can('sol.' + t));
+const solPerms = () => ['territorio', 'publicacoes'].filter(t => can('sol.' + t));
 const genPin = (lista = D.publicadores) => { const used = new Set(lista.map(p => String(p.pin || ''))); let v; do { v = String(Math.floor(1000 + Math.random() * 9000)); } while (used.has(v)); return v; };
 const cargoLabel = p => [isSupremo(p) ? 'Admin supremo' : '', isElder(p) ? 'Ancião' : '', ...cargosDe(p).map(c => CARGOS[c][0])].filter(Boolean).join(' · ');
 const eventoSemana = s => { if (!s) return null; const a = monday(s), b = addDays(a, 6); return D.anuncios.find(x => x.tipo === 'Evento' && x.data >= a && x.data <= b && x.cancela); };
@@ -151,8 +151,8 @@ function terrIniciais(put) {
 }
 // ================= dados de demonstração =================
 function seedDemo() {
-  if (store.list('config').length && LS.get('cg_seedv', 1) === 12) return;
-  store.data = {}; LS.set('cg_seedv', 12); S.me = null; S.unlocked = false; S.view = 'inicio';
+  if (store.list('config').length && LS.get('cg_seedv', 1) === 13) return;
+  store.data = {}; LS.set('cg_seedv', 13); S.me = null; S.unlocked = false; S.view = 'inicio';
   const put = (c, id, o) => { (store.data[c] = store.data[c] || {})[id || uid()] = o; };
   put('config', 'app', { terrCorte: today(), nome: 'Congregação Velha Marabá', horaVmc: '19:30', horaFds: '19:00', relatoriosAtivos: true });
   const P = [['Jonata Lima', 'Grupo 1', 'Pioneiro regular', 'Servo ministerial'], ['Andrey Menezes', 'Grupo 1', 'Publicador', 'Ancião'], ['Eduardo Menezes', 'Grupo 1', 'Publicador', 'Servo ministerial'], ['Amanda Silva', 'Grupo 1', 'Pioneiro auxiliar', ''],
@@ -197,7 +197,6 @@ function seedDemo() {
     put('relatorios', m2 + '_p2', { mes: m2, pub: 'p2', nome: 'Eduardo Menezes', participou: true, estudos: 2, horas: 0, enviadoEm: iso(d) });
     put('relatorios', m2 + '_p0', { mes: m2, pub: 'p0', nome: 'Jonata Lima', participou: true, estudos: 3, horas: 52, enviadoEm: iso(d) }); })();
   put('relatorios', mesAnterior() + '_p2', { mes: mesAnterior(), pub: 'p2', nome: 'Eduardo Menezes', participou: true, estudos: 1, horas: 0, enviadoEm: today() });
-  put('solicitacoes', null, { tipo: 'pioneiro', pub: 'p3', nome: 'Amanda Silva', meses: [mesAtual()], continuo: false, horas: 30, obs: '', status: 'pendente', criado: today() });
   // registro real (S-13, ano de serviço 2026): [número, dirigente, designação, conclusão]
   terrIniciais(put);
   store._save();
@@ -226,7 +225,7 @@ const ROUTES = {
   campo: ['Serviço de campo', 'programas'], carrinho: ['Testemunho público', 'programas'], personalizadas: ['Programações', 'programas'],
   anuncios: ['Quadro de anúncios', 'inicio'], eventos: ['Eventos', 'inicio'],
   designacoes: ['Designações mecânicas', 'mais'], publicadores: ['Publicadores', 'mais'], solicitacoes: ['Solicitações', 'mais'], relatorios: ['Relatórios', 'mais'],
-  atividade: ['Atividade de campo', 'eu'], historico: ['Histórico de campo', 'eu'], pioneiro: ['Pioneiro auxiliar', 'eu'], ausencia: ['Ausência', 'eu'], contato: ['Meu contato', 'eu'], emergencia: ['Emergência', 'eu'], grupo: ['Meu grupo', 'eu'], pedirTerr: ['Pedir território', 'eu'], publicacoes: ['Publicações', 'eu'], relatorio: ['Relatório do mês', 'eu'],
+  atividade: ['Atividade de campo', 'eu'], historico: ['Histórico de campo', 'eu'], grupo: ['Meu grupo', 'eu'], pedirTerr: ['Pedir território', 'eu'], publicacoes: ['Publicações', 'eu'], relatorio: ['Relatório do mês', 'eu'],
   mapaGeral: ['Mapa geral', 'territorios'], cargos: ['Cargos e funções', 'mais'],
   config: ['Configurações', 'inicio']
 };
@@ -578,9 +577,9 @@ VIEWS.designacoes = () => {
 VIEWS.publicadores = () => {
   if (!ver('publicadores.ver')) return '<div class="empty">Apenas anciãos e administradores.</div>';
   const gs = {}; pubs().forEach(p => (gs[p.grupo || 'Sem grupo'] = gs[p.grupo || 'Sem grupo'] || []).push(p));
-  const aus = id => D.solicitacoes.find(s => s.tipo === 'ausencia' && s.pub === id && s.status !== 'recusado' && s.fim >= today() && s.inicio <= addDays(today(), 30));
+  const aus = () => null;
   return Object.keys(gs).sort().map(g => `<div class="sec">${esc(g)} (${gs[g].length})</div><div class="card list">${gs[g].map(p => { const a = aus(p.id);
-    return `<div class="it"><div class="sp"><b>${esc(p.nome)}</b><div class="small muted">${esc(p.tipo || '')}${p.priv ? ' · ' + esc(p.priv) : ''}${p.telefone ? ' · ' + esc(p.telefone) : ''}</div>${isSupremo(p) || cargosDe(p).length ? `<div class="small"><b>${esc([isSupremo(p) ? '★ Admin supremo' : '', ...cargosDe(p).map(c => CARGOS[c][0])].filter(Boolean).join(' · '))}</b></div>` : ''}${can('publicadores') && p.pin ? `<div class="small">PIN <b class="pin-tag">${esc(p.pin)}</b></div>` : ''}${a ? `<div class="small"><span class="pill warn">Ausente ${fmtShort(a.inicio)} – ${fmtShort(a.fim)}</span></div>` : ''}</div>${adminBtns('publicadores', p.id)}</div>`; }).join('')}</div>`).join('') + fab('new_publicadores');
+    return `<div class="it"><div class="sp"><b>${esc(p.nome)}</b><div class="small muted">${esc(p.tipo || '')}${p.priv ? ' · ' + esc(p.priv) : ''}</div>${isSupremo(p) || cargosDe(p).length ? `<div class="small"><b>${esc([isSupremo(p) ? '★ Admin supremo' : '', ...cargosDe(p).map(c => CARGOS[c][0])].filter(Boolean).join(' · '))}</b></div>` : ''}${can('publicadores') && p.pin ? `<div class="small">PIN <b class="pin-tag">${esc(p.pin)}</b></div>` : ''}${a ? `<div class="small"><span class="pill warn">Ausente ${fmtShort(a.inicio)} – ${fmtShort(a.fim)}</span></div>` : ''}</div>${adminBtns('publicadores', p.id)}</div>`; }).join('')}</div>`).join('') + fab('new_publicadores');
 };
 VIEWS.cargos = () => {
   if (!isSupremo(meP())) return '<div class="empty">Só o admin supremo gerencia os cargos.</div>';
@@ -611,7 +610,7 @@ function cargoEdit(id) {
     for (const p of D.publicadores.filter(p => (p.cargos || []).includes(id))) await store.put('publicadores', p.id, { ...p, cargos: p.cargos.filter(x => x !== id) });
     await store.put('config', 'app', { ...cfg(), cargosExtra: ex }); closeModal(); toast('Cargo excluído'); };
 }
-const SOL_T = { pioneiro: 'Pioneiro auxiliar', ausencia: 'Ausência', territorio: 'Território', publicacoes: 'Publicações' };
+const SOL_T = { territorio: 'Território', publicacoes: 'Publicações' };
 const solDesc = s => s.tipo === 'pioneiro' ? `${(s.meses || []).map(mesLabel).join(', ')}${s.continuo ? ' · contínuo' : ''} · ${s.horas || 30} h` :
   s.tipo === 'ausencia' ? `${fmt(s.inicio)} a ${fmt(s.fim)}` : s.tipo === 'territorio' ? (s.numero ? `Território ${s.numero}` : 'Qualquer território disponível') : `${esc(s.qtd || 1)}× ${esc(s.item || '')}${s.idioma ? ' · ' + esc(s.idioma) : ''}`;
 VIEWS.solicitacoes = () => {
@@ -640,8 +639,7 @@ VIEWS.relatorios = () => {
 VIEWS.eu = () => {
   const me = meP();
   return `<div class="card me-card"><div class="avatar">${esc((me.nome || '?').split(' ').map(x => x[0]).slice(0, 2).join(''))}</div><div class="sp"><h3>${esc(me.nome)}</h3><div class="small muted">${esc(me.grupo || 'Sem grupo')} · ${esc(me.tipo || 'Publicador')}${me.priv ? ' · ' + esc(me.priv) : ''}</div></div></div>` +
-    (isSup(me) ? block('Congregação', linkRow('relatorios', '📊', 'Relatórios enviados', 'Ver os relatórios dos irmãos') + linkRow('grupo', '👥', 'Meu grupo de campo', esc(me.grupo || ''))) : block('Serviço de campo', linkRow('atividade', '⏱️', 'Atividade de serviço de campo', isPioneer(me) ? 'Registre suas horas' : 'Marque que foi ao campo') + (isPioneer(me) ? linkRow('relatorio', '📝', 'Relatório do mês', mesLabel(mesAnterior())) : '') + linkRow('historico', '🚪', 'Histórico de serviço de campo', '') + linkRow('pioneiro', '🙋', 'Pioneiro auxiliar', 'Fazer solicitação')) +
-    block('Informações pessoais', linkRow('ausencia', '✈️', 'Ausência', 'Avise quando estiver fora') + linkRow('contato', '🪪', 'Minhas informações de contato', '') + linkRow('emergencia', '🚑', 'Meus contatos de emergência', '') + linkRow('grupo', '👥', 'Meu grupo de campo', esc(me.grupo || ''))) +
+    (isSup(me) ? block('Congregação', linkRow('relatorios', '📊', 'Relatórios enviados', 'Ver os relatórios dos irmãos') + linkRow('grupo', '👥', 'Meu grupo de campo', esc(me.grupo || ''))) : block('Serviço de campo', linkRow('atividade', '⏱️', 'Atividade de serviço de campo', isPioneer(me) ? 'Registre suas horas' : 'Marque que foi ao campo') + (isPioneer(me) ? linkRow('relatorio', '📝', 'Relatório do mês', mesLabel(mesAnterior())) : '') + linkRow('historico', '🚪', 'Histórico de serviço de campo', '') + linkRow('grupo', '👥', 'Meu grupo de campo', esc(me.grupo || ''))) +
     block('Solicitações', linkRow('pedirTerr', '🗺️', 'Solicitar território', '') + linkRow('publicacoes', '📚', 'Solicitar publicações', '')));
 };
 VIEWS.atividade = () => {
@@ -682,28 +680,6 @@ VIEWS.historico = () => {
 };
 const minhasSol = tipo => D.solicitacoes.filter(s => s.pub === S.me && s.tipo === tipo).sort((a, b) => (b.criado || '').localeCompare(a.criado || ''));
 const solList = tipo => { const l = minhasSol(tipo); return l.length ? `<div class="sec">Minhas solicitações</div><div class="card list">${l.map(s => `<div class="it"><div class="sp small">${solDesc(s)}<div class="muted">${fmt(s.criado)}</div></div><span class="pill ${s.status === 'pendente' ? 'warn' : s.status === 'aprovado' ? 'ok' : 'bad'}">${esc(s.status)}</span>${s.status === 'pendente' ? `<button class="icon-btn" data-act="delSol" data-id="${esc(s.id)}">✕</button>` : ''}</div>`).join('')}</div>` : ''; };
-VIEWS.pioneiro = () => {
-  const base = new Date(); const ms = [0, 1, 2, 3].map(k => { const d = new Date(base.getFullYear(), base.getMonth() + k, 1); return mesDe(iso(d)); });
-  return `<div class="card"><p class="small muted" style="margin-top:0">Escolha o(s) mês(es) em que deseja servir como pioneiro auxiliar.</p>
-    ${ms.map(m => `<div class="f"><label class="chk"><input type="checkbox" class="pa_m" value="${m}"> <span style="text-transform:capitalize">${esc(mesLabel(m))}</span></label></div>`).join('')}
-    <div class="f"><label class="chk"><input type="checkbox" id="pa_cont"> Até novo aviso (contínuo)</label></div>
-    <div class="f"><label>Meta de horas</label><select id="pa_h"><option>30</option><option>15</option></select></div>
-    <div class="f"><label>Observações</label><textarea id="pa_obs"></textarea></div>
-    <button class="btn block" data-act="sendPio">Enviar solicitação</button></div>${solList('pioneiro')}`;
-};
-VIEWS.ausencia = () => `<div class="card"><p class="small muted" style="margin-top:0">Avise os anciãos quando for viajar ou ficar ausente, para ajustarem as designações.</p>
-  <div class="grid2"><div class="f"><label>De</label><input id="au_i" type="date" value="${today()}"></div><div class="f"><label>Até</label><input id="au_f" type="date" value="${addDays(today(), 7)}"></div></div>
-  <div class="f"><label>Observação</label><textarea id="au_obs" placeholder="Opcional"></textarea></div>
-  <button class="btn block" data-act="sendAus">Registrar ausência</button></div>${solList('ausencia')}`;
-VIEWS.contato = () => { const p = meP();
-  return `<div class="card"><div class="f"><label>Telefone / WhatsApp</label><input id="ct_tel" type="tel" value="${esc(p.telefone || '')}"></div>
-    <div class="f"><label>E-mail</label><input id="ct_email" type="email" value="${esc(p.email || '')}"></div>
-    <div class="f"><label>Endereço</label><textarea id="ct_end">${esc(p.endereco || '')}</textarea></div>
-    <button class="btn block" data-act="saveContato">Salvar</button><p class="small muted">Visível para os anciãos da congregação.</p></div>`; };
-VIEWS.emergencia = () => { const l = meP().emergencia || [];
-  return `<div class="card"><div id="em_list">${(l.length ? l : [{}]).map(emRow).join('')}</div>
-    <button class="btn sm sec2" data-act="addEm">+ Outro contato</button><button class="btn block" style="margin-top:12px" data-act="saveEm">Salvar</button></div>`; };
-const emRow = e => `<div class="em-row"><div class="f"><label>Nome</label><input class="em_n" value="${esc(e.nome || '')}"></div><div class="grid2"><div class="f"><label>Parentesco</label><input class="em_p" value="${esc(e.parentesco || '')}"></div><div class="f"><label>Telefone</label><input class="em_t" type="tel" value="${esc(e.telefone || '')}"></div></div></div>`;
 VIEWS.grupo = () => { const me = meP(); const g = me.grupo; if (!g) return '<div class="empty">Você ainda não está em um grupo.</div>';
   const membros = pubs().filter(p => p.grupo === g); const sup = membros[0] && membros[0].superintendente;
   const saidas = D.saidas.filter(s => s.grupo === g || s.grupo === 'Todos');
@@ -719,7 +695,7 @@ VIEWS.publicacoes = () => `<div class="card"><div class="f"><label>Publicação<
   <div class="grid2"><div class="f"><label>Quantidade</label><input id="pb_q" type="number" min="1" value="1"></div><div class="f"><label>Idioma</label><input id="pb_i" value="Português"></div></div>
   <div class="f"><label>Observação</label><textarea id="pb_obs"></textarea></div><button class="btn block" data-act="sendPub">Solicitar</button></div>${solList('publicacoes')}`;
 
-['atividade', 'relatorio', 'historico', 'pioneiro', 'ausencia', 'contato', 'emergencia', 'pedirTerr', 'publicacoes'].forEach(v => { const f = VIEWS[v]; VIEWS[v] = (...a) => isSup(meP()) ? '<div class="empty">O superintendente só acompanha o app. Não envia relatórios nem faz solicitações.</div>' : f(...a); });
+['atividade', 'relatorio', 'historico', 'pedirTerr', 'publicacoes'].forEach(v => { const f = VIEWS[v]; VIEWS[v] = (...a) => isSup(meP()) ? '<div class="empty">O superintendente só acompanha o app. Não envia relatórios nem faz solicitações.</div>' : f(...a); });
 // ================= TERRITÓRIOS =================
 function terrStatus(t) { return t.inicio && !t.termino ? 'andamento' : 'disponivel'; }
 VIEWS.territorios = () => {
@@ -903,7 +879,7 @@ const FORMS = {
   carrinho: { title: 'Horário do carrinho', fields: [['data', 'Data', 'date'], ['hora', 'Horário (ex.: 07:00 – 09:00)', 'text'], ['local', 'Local', 'text'], ['vagas', 'Vagas', 'number'], ['inscritos', 'Inscritos (separados por vírgula)', 'csv']] },
   anuncios: { title: 'Quadro de anúncios', fields: [['tipo', 'Tipo', 'select', ['Anúncio', 'Documento', 'Evento']], ['titulo', 'Título', 'text'], ['texto', 'Texto', 'textarea'], ['data', 'Data do evento / anúncio', 'date'], ['ate', 'Mostrar até (depois é apagado sozinho)', 'date'], ['cancela', 'Evento substitui as reuniões da semana (assembleia, congresso)', 'check']] },
   programas: { title: 'Programação personalizada', fields: [['titulo', 'Título', 'text'], ['data', 'Data', 'date'], ['texto', 'Programação (uma linha por item)', 'textarea']] },
-  publicadores: { title: 'Publicador', fields: [['nome', 'Nome', 'text'], ['grupo', 'Grupo', 'grupo'], ['superintendente', 'Superintendente do grupo', 'pub'], ['tipo', 'Tipo', 'select', ['Publicador', 'Pioneiro auxiliar', 'Pioneiro regular', 'Publicador não batizado']], ['priv', 'Privilégio', 'select', ['', 'Servo ministerial', 'Ancião']], ['cargos', 'Cargos no app', 'cargos'], ['pin', 'PIN pessoal', 'pinview'], ['telefone', 'Telefone', 'text']] },
+  publicadores: { title: 'Publicador', fields: [['nome', 'Nome', 'text'], ['grupo', 'Grupo', 'grupo'], ['superintendente', 'Superintendente do grupo', 'pub'], ['tipo', 'Tipo', 'select', ['Publicador', 'Pioneiro auxiliar', 'Pioneiro regular', 'Publicador não batizado']], ['priv', 'Privilégio', 'select', ['', 'Servo ministerial', 'Ancião']], ['cargos', 'Cargos no app', 'cargos'], ['pin', 'PIN pessoal', 'pinview']] },
   territorios: { title: 'Território', fields: [['numero', 'Número', 'text'], ['nome', 'Bairro / nome', 'text'], ['grupo', 'Grupo', 'grupo'], ['imagem', 'Imagem do mapa', 'image'], ['dirigente', 'Dirigente', 'pub'], ['inicio', 'Data de início', 'date'], ['termino', 'Data de término', 'date']] }
 };
 const nextDow = (dow) => { const d = parse(today()); while (d.getDay() !== dow) d.setDate(d.getDate() + 1); return iso(d); };
@@ -954,6 +930,7 @@ function openForm(col, item) {
       else o[k] = $('#ff_' + k).value.trim();
     });
     if (col === 'territorios') { if (!o.numero) return toast('Informe o número'); o.historico = o.historico || []; }
+    if (col === 'publicadores') ['telefone', 'email', 'endereco', 'emergencia'].forEach(k => delete o[k]);
     if (col === 'publicadores' && !o.nome) return toast('Informe o nome');
     if (col === 'publicadores' && !o.pin) o.pin = genPin();
     if (col === 'publicadores' && item && isSupremo(item) && !isSupremo(meP())) return toast('Só o admin supremo pode alterar esta conta');
@@ -1289,8 +1266,6 @@ const ACTIONS = {
     async () => { const h = Number($('#av_h').value) || 0, mi = Number($('#av_m').value) || 0, cr = Number($('#av_c').value) || 0; if (!h && !mi && !cr) { toast('Informe o tempo'); return false; }
       await store.put('atividade', null, { pub: S.me, data: $('#av_d').value || today(), horas: h, minutos: mi, creditos: cr, obs: $('#av_o').value.trim() }); toast('Atividade registrada'); }, 'Salvar'),
   delAtiv: async (id, b) => { if (!confirmInline(b)) return; await store.del('atividade', id); },
-  sendPio: async () => { const ms = $$('.pa_m:checked').map(x => x.value); if (!ms.length && !$('#pa_cont').checked) return toast('Escolha um mês'); await solicitar('pioneiro', { meses: ms, continuo: $('#pa_cont').checked, horas: Number($('#pa_h').value), obs: $('#pa_obs').value.trim() }); },
-  sendAus: async () => { const i = $('#au_i').value, f = $('#au_f').value; if (!i || !f || f < i) return toast('Confira as datas'); await solicitar('ausencia', { inicio: i, fim: f, obs: $('#au_obs').value.trim() }); },
   sendTerr: async () => solicitar('territorio', { numero: $('#pt_n').value, obs: $('#pt_obs').value.trim() }),
   sendPub: async () => { const it = $('#pb_item').value.trim(); if (!it) return toast('Informe a publicação'); await solicitar('publicacoes', { item: it, qtd: Number($('#pb_q').value) || 1, idioma: $('#pb_i').value.trim(), obs: $('#pb_obs').value.trim() }); },
   delSol: async (id, b) => { if (!confirmInline(b)) return; await store.del('solicitacoes', id); },
@@ -1299,9 +1274,6 @@ const ACTIONS = {
       if (t && !(t.inicio && !t.termino)) { await store.put('territorios', t.id, { ...t, dirigente: s.nome, inicio: today(), termino: '' }); s.numero = t.numero; toast(`Território ${t.numero} entregue a ${s.nome}`); } }
     await store.put('solicitacoes', id, { ...s, status: 'aprovado', resolvido: today() }); },
   solNo: async id => { const s = D.solicitacoes.find(x => x.id === id); if (!can('sol.' + s.tipo)) return toast('Sem permissão'); await store.put('solicitacoes', id, { ...s, status: 'recusado', resolvido: today() }); },
-  saveContato: async () => { await store.put('publicadores', S.me, { ...meP(), telefone: $('#ct_tel').value.trim(), email: $('#ct_email').value.trim(), endereco: $('#ct_end').value.trim() }); toast('Salvo'); },
-  addEm: () => $('#em_list').insertAdjacentHTML('beforeend', emRow({})),
-  saveEm: async () => { const l = $$('.em-row').map(r => ({ nome: $('.em_n', r).value.trim(), parentesco: $('.em_p', r).value.trim(), telefone: $('.em_t', r).value.trim() })).filter(e => e.nome || e.telefone); await store.put('publicadores', S.me, { ...meP(), emergencia: l }); toast('Salvo'); },
   copyFds: id => { const x = D.fds.find(v => v.id === id); copy(`Reunião de fim de semana — ${fmtLong(x.data)} ${x.hora || cfg().horaFds || ''}\nDiscurso: ${x.tema || ''}${x.numero ? ' (' + x.numero + ')' : ''}\nOrador: ${x.orador || ''} (${x.congregacao || ''})\nPresidente: ${x.presidente || ''}\nLeitor: ${x.leitor || ''}`); },
   copyVmc: id => { const x = D.vmc.find(v => v.id === id); const { rows, out, ps } = vmcHorarios(x); let n = 0;
     const L = [`Vida e Ministério — ${fmtLong(x.data)}${x.leitura ? ' | ' + x.leitura : ''}`, `${hm(rows.ini)} ${x.canticoIni || 'Cântico'} — Oração: ${x.oracaoIni || ''}`, `${hm(rows.coment)} Comentários iniciais — Presidente: ${x.presidente || ''}`];
