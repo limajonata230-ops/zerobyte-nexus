@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "71417668327",
+    "project_id": "zerobyte-nexus",
+    "storage_bucket": "zerobyte-nexus.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:71417668327:android:4ec28e73173f263c30b842",
+        "android_client_info": {
+          "package_name": "io.github.limajonata230.zerobytenexus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBGWWDB-Fg-EKHiPnuiyCEf1ias4YMtpNw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
