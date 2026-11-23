@@ -11,4 +11,4 @@ self.FIREBASE_CONFIG = {
 
 // Chave pública "Certificado push da Web" (Firebase › Configurações do projeto › Cloud Messaging).
 // Enquanto for null, o navegador não pede notificações.
-self.FCM_VAPID = null;
+self.FCM_VAPID = 'BO87Cpafou7xcDfCU43hCnSKvzRz7oPFe6o6NhgLDsdN5o-UjVYJuSfsGCMq4oJjTLEfoEn90IFhvjOzKqm6jpM';
