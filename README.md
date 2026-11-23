@@ -1,4 +1,4 @@
-# ZeroByte Nexus
+# ZB Hub
 
 Informações na palma da mão: app (PWA) da congregação com programas das reuniões, saídas de campo, territórios com mapas de satélite, atividade de campo e relatórios.
 

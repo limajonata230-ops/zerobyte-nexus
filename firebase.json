@@ -25,12 +25,12 @@
     "redirects": [
       {
         "source": "/baixar",
-        "destination": "https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZeroByte-Nexus.apk",
+        "destination": "https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZB-Hub.apk",
         "type": 302
       },
       {
         "source": "/ZeroByte-Nexus.apk",
-        "destination": "https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZeroByte-Nexus.apk",
+        "destination": "https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZB-Hub.apk",
         "type": 302
       }
     ]

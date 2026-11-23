@@ -25,11 +25,11 @@ jobs:
           npm init -y >/dev/null
           npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
           if [ -f $GITHUB_WORKSPACE/android-res/google-services.json ]; then npm i @capacitor/push-notifications@6; echo "com notificações"; fi
-          echo '<!doctype html><meta charset="utf-8"><title>ZeroByte Nexus</title>' > www/index.html
+          echo '<!doctype html><meta charset="utf-8"><title>ZB Hub</title>' > www/index.html
           cat > capacitor.config.json <<'JSON'
           {
             "appId": "io.github.limajonata230.zerobytenexus",
-            "appName": "ZeroByte Nexus",
+            "appName": "ZB Hub",
             "webDir": "www",
             "backgroundColor": "#0d0d0d",
             "server": { "url": "https://zerobyte-nexus.web.app/", "androidScheme": "https" },
@@ -61,16 +61,16 @@ jobs:
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
           IN=wrap/android/app/build/outputs/apk/release/app-release-unsigned.apk
           P=$(openssl rand -hex 16)
-          keytool -genkeypair -keystore k.p12 -storetype PKCS12 -alias zb -keyalg RSA -keysize 2048 -validity 10000 -storepass "$P" -keypass "$P" -dname "CN=ZeroByte Nexus, C=BR"
+          keytool -genkeypair -keystore k.p12 -storetype PKCS12 -alias zb -keyalg RSA -keysize 2048 -validity 10000 -storepass "$P" -keypass "$P" -dname "CN=ZB Hub, C=BR"
           $BT/zipalign -f 4 $IN aligned.apk
-          $BT/apksigner sign --ks k.p12 --ks-key-alias zb --ks-pass pass:$P --key-pass pass:$P --out ZeroByte-Nexus.apk aligned.apk
-          $BT/apksigner verify ZeroByte-Nexus.apk && ls -la ZeroByte-Nexus.apk && rm -f k.p12
+          $BT/apksigner sign --ks k.p12 --ks-key-alias zb --ks-pass pass:$P --key-pass pass:$P --out ZB-Hub.apk aligned.apk
+          $BT/apksigner verify ZB-Hub.apk && ls -la ZB-Hub.apk && rm -f k.p12
 
       - name: Publicar na página de downloads
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-latest
-          name: ZeroByte Nexus para Android
-          body: Baixe o arquivo ZeroByte-Nexus.apk no celular Android e toque nele para instalar.
-          files: ZeroByte-Nexus.apk
+          name: ZB Hub para Android
+          body: Baixe o arquivo ZB-Hub.apk no celular Android e toque nele para instalar.
+          files: ZB-Hub.apk
           make_latest: true

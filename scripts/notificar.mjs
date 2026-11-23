@@ -27,7 +27,7 @@ const add = (nome, linha) => { const p = porNome.get(norm(nome)); if (!p) return
 const hoje = hojeBR(), amanha = addDias(hoje, 1), semana = addDias(hoje, 7);
 const quando = d => d === amanha ? 'Amanhã' : `${diaSemana(d)[0].toUpperCase() + diaSemana(d).slice(1)}, ${fmt(d)}`;
 
-if (TESTE) add(TESTE, 'Este é um aviso de teste do ZeroByte Nexus. As notificações estão funcionando!');
+if (TESTE) add(TESTE, 'Este é um aviso de teste do ZB Hub. As notificações estão funcionando!');
 else {
   for (const r of vmc) for (const d of [amanha, semana]) if (r.data === d) {
     const q = quando(d) + ' (Vida e Ministério)';
@@ -58,7 +58,7 @@ let enviados = 0, falhas = 0;
 for (const [pub, linhas] of avisos) {
   const tks = tokens.filter(t => t.pub === pub);
   if (!tks.length) continue;
-  const title = TESTE ? '🔔 ZeroByte Nexus' : linhas.length > 1 ? `Você tem ${linhas.length} designações` : 'Lembrete de designação';
+  const title = TESTE ? '🔔 ZB Hub' : linhas.length > 1 ? `Você tem ${linhas.length} designações` : 'Lembrete de designação';
   const body = linhas.join('\n');
   const res = await admin.messaging().sendEachForMulticast({
     tokens: tks.map(t => t.token),

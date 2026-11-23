@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.11.0';
+const VERSAO = '1.12.0';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -309,18 +309,18 @@ const BELL = `<svg class="bell-art" viewBox="0 0 160 160" xmlns="http://www.w3.o
   <circle cx="114" cy="44" r="13" fill="#ff3b3b" stroke="#0d0d0d" stroke-width="3.5"/><text x="114" y="49.5" text-anchor="middle" font-size="15" font-weight="800" fill="#fff" font-family="Inter,sans-serif">1</text></svg>`;
 function pushGateHTML(st) {
   const negado = st === 'denied' || S.pushNegado;
-  const passos = nativo() ? '<li>Abra os <b>Ajustes</b> do celular › <b>Apps</b> › <b>ZeroByte Nexus</b>.</li><li>Toque em <b>Notificações</b> e ligue a chave.</li>'
-    : isIOS() ? '<li>Abra os <b>Ajustes</b> do iPhone › <b>Notificações</b> › <b>ZeroByte Nexus</b>.</li><li>Ligue <b>Permitir Notificações</b>.</li>'
+  const passos = nativo() ? '<li>Abra os <b>Ajustes</b> do celular › <b>Apps</b> › <b>ZB Hub</b>.</li><li>Toque em <b>Notificações</b> e ligue a chave.</li>'
+    : isIOS() ? '<li>Abra os <b>Ajustes</b> do iPhone › <b>Notificações</b> › <b>ZB Hub</b>.</li><li>Ligue <b>Permitir Notificações</b>.</li>'
     : '<li>Toque no <b>cadeado</b> ao lado do endereço do site.</li><li>Em <b>Notificações</b>, escolha <b>Permitir</b>.</li>';
   let corpo;
   if (st === 'ios-install') corpo = `<p class="pin-lead">No iPhone, as notificações só funcionam com o app na tela de início.</p>
-      <ol class="gate-steps"><li>Toque no botão <b>Compartilhar</b> <span class="ios-share">⬆︎</span> do Safari.</li><li>Escolha <b>Adicionar à Tela de Início</b> › <b>Adicionar</b>.</li><li>Abra o <b>ZeroByte Nexus</b> pelo ícone novo e ative as notificações.</li></ol>`;
+      <ol class="gate-steps"><li>Toque no botão <b>Compartilhar</b> <span class="ios-share">⬆︎</span> do Safari.</li><li>Escolha <b>Adicionar à Tela de Início</b> › <b>Adicionar</b>.</li><li>Abra o <b>ZB Hub</b> pelo ícone novo e ative as notificações.</li></ol>`;
   else if (st === 'unsupported') corpo = `<p class="pin-lead">Este navegador não recebe notificações.</p><p class="small muted" style="text-align:center">No Android, instale o app pelo botão abaixo ou abra no <b>Chrome</b>. No iPhone, abra no <b>Safari</b>.</p>
       ${/Android/i.test(navigator.userAgent) ? '<a class="btn block" style="text-decoration:none;text-align:center" href="https://zerobyte-nexus.web.app/baixar">📲 Baixar o app para Android</a>' : ''}`;
   else if (negado) corpo = `<p class="pin-lead">As notificações estão bloqueadas.</p><p class="small muted" style="text-align:center">Para usar o app, libere assim:</p><ol class="gate-steps">${passos}</ol>
       <button class="btn block" id="pg_retry">Já liberei</button>`;
   else corpo = `<p class="pin-lead">O app avisa você das suas <b>partes nas reuniões</b>, designações e saídas de campo.</p>
-      <p class="small muted" style="text-align:center;margin-top:-8px">Para usar o ZeroByte Nexus, é preciso ativar as notificações.</p>
+      <p class="small muted" style="text-align:center;margin-top:-8px">Para usar o ZB Hub, é preciso ativar as notificações.</p>
       <button class="btn block wl-go" id="pg_go">🔔 Ativar notificações</button>`;
   return `<div class="pinscreen"><header class="top pin-top"><div class="kick-row"><span class="kicker">03 · Avisos</span></div><h1>Notificações</h1></header>
     <div class="pin-body gate">${BELL}${corpo}<button class="lnk" id="pg_sair" style="margin-top:22px">Entrar com outro PIN</button></div></div>`;
@@ -400,7 +400,7 @@ function loginHTML() {
       <div class="wl-top">${WELCOME_ART}</div>
       <div class="wl-bot">
         <span class="kicker">01 · Bem-vindo</span>
-        <h1 class="wl-h">ZeroByte <span>Nexus</span></h1>
+        <h1 class="wl-h">ZB <span>Hub</span></h1>
         <p class="wl-sub">Informações na palma da mão</p>
         <button class="btn block wl-go" id="wl_go">Começar <b>→</b></button>
       </div></div>`;
