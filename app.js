@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.13.0';
+const VERSAO = '1.13.1';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -1032,7 +1032,9 @@ function openForm(col, item) {
     if (type === 'pinview') return `<div class="f"><label>${label}</label>${val ? `<div class="pin-big">${esc(val)}</div>` : '<div class="small muted">Será gerado automaticamente ao salvar.</div>'}<div class="small muted">Gerado pelo app. Não pode ser alterado.</div></div>`;
     if (type === 'check') return `<div class="f"><label class="chk"><input type="checkbox" id="ff_${k}" ${val ? 'checked' : ''}> ${label}</label></div>`;
     if (type === 'image') return `<div class="f"><label>${label}</label>${val ? `<img class="terr-img" id="ff_imgprev" src="${esc(val)}">` : '<img class="terr-img hidden" id="ff_imgprev">'}<input type="file" accept="image/*" id="ff_imgfile"></div>`;
-    const t = ['pub', 'grupo', 'csv'].includes(type) ? 'text' : type;
+    if (type === 'grupo') { const ops = [...(col === 'saidas' ? ['Todos'] : []), ...grupos]; if (val && !ops.includes(val)) ops.push(val);
+      return `<div class="f"><label>${label}</label><select id="ff_${k}" class="ff_grupo"><option value="">— Sem grupo —</option>${ops.map(g => `<option ${g === val ? 'selected' : ''}>${esc(g)}</option>`).join('')}<option value="__novo">+ Novo grupo…</option></select><input id="ff_${k}_novo" class="hidden" placeholder="Nome do novo grupo, ex.: Grupo 04" style="margin-top:8px"></div>`; }
+    const t = ['pub', 'csv'].includes(type) ? 'text' : type;
     const list = type === 'pub' || type === 'csv' ? 'dl_pubs' : type === 'grupo' ? 'dl_grupos' : '';
     return `<div class="f"><label>${label}</label><input id="ff_${k}" type="${t}" ${list ? `list="${list}"` : ''} value="${esc(Array.isArray(val) ? val.join(', ') : val)}" ${type === 'number' ? 'inputmode="numeric"' : ''}></div>`;
   };
@@ -1045,6 +1047,7 @@ function openForm(col, item) {
   const ap = $('#ff_addpart'); if (ap) ap.onclick = () => $('#ff_parts').insertAdjacentHTML('beforeend', partRow({ s: 'vida' }));
   $$('.parts', m).forEach(p => p.onclick = e => { if (e.target.classList.contains('rm')) e.target.closest('.prow').remove(); });
   let newImg = null;
+  $$('.ff_grupo', m).forEach(sel => sel.onchange = () => { const n = $('#' + sel.id + '_novo'); n.classList.toggle('hidden', sel.value !== '__novo'); if (sel.value === '__novo') n.focus(); });
   const fi = $('#ff_imgfile'); if (fi) fi.onchange = async () => { if (!fi.files[0]) return; newImg = await resizeImage(fi.files[0], 1000); const pv = $('#ff_imgprev'); pv.src = newImg; pv.classList.remove('hidden'); };
   if (item) $('#ff_del').onclick = async () => { if (col === 'publicadores' && isSupremo(item)) return toast('A conta do admin supremo não pode ser excluída'); if (col === 'publicadores' && isAdm(item) && D.publicadores.filter(isAdm).length <= 1) return toast('Não dá para excluir o único administrador'); if (!confirmInline($('#ff_del'))) return; await store.del(col, item.id); closeModal(); toast('Excluído'); if (['vmcDet', 'fdsDet', 'personalizadas'].includes(S.view)) go('programas'); };
   $('#ff_save').onclick = async () => {
@@ -1057,6 +1060,7 @@ function openForm(col, item) {
       else if (type === 'check') o[k] = $('#ff_' + k).checked;
       else if (type === 'pinview') { /* gerado automaticamente */ }
       else if (type === 'cargos') o[k] = $$('.ff_cargo:checked', m).map(x => x.value);
+      else if (type === 'grupo') { const v = $('#ff_' + k).value; o[k] = v === '__novo' ? $('#ff_' + k + '_novo').value.trim() : v; }
       else o[k] = $('#ff_' + k).value.trim();
     });
     if (col === 'territorios') { if (!o.numero) return toast('Informe o número'); o.historico = o.historico || []; }
