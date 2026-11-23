@@ -3,9 +3,36 @@
     "public": "public",
     "cleanUrls": false,
     "headers": [
-      { "source": "**/*.@(html|js|css|json)", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-      { "source": "sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-      { "source": "**/*.apk", "headers": [{ "key": "Content-Type", "value": "application/vnd.android.package-archive" }, { "key": "Content-Disposition", "value": "attachment; filename=ZeroByte-Nexus.apk" }] }
+      {
+        "source": "**/*.@(html|js|css|json)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "sw.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/baixar",
+        "destination": "https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZeroByte-Nexus.apk",
+        "type": 302
+      },
+      {
+        "source": "/ZeroByte-Nexus.apk",
+        "destination": "https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZeroByte-Nexus.apk",
+        "type": 302
+      }
     ]
   }
 }
