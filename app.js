@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.13.2';
+const VERSAO = '1.13.3';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -1195,7 +1195,27 @@ async function pdfRows(buf) {
 }
 const FDS_CAMPOS = [['', 'Ignorar'], ['tema', 'Tema do discurso'], ['numero', 'Número do esboço'], ['orador', 'Orador'], ['congregacao', 'Congregação'], ['presidente', 'Presidente'], ['leitor', 'Leitor de A Sentinela']];
 const HEAD_RE = { tema: /tema|t[íi]tulo|discurso/i, numero: /^n[º°o.]?$|esbo[çc]o|n[úu]mero/i, orador: /orador/i, congregacao: /congrega/i, presidente: /presid/i, leitor: /leitor/i };
+// formato com rótulos (ex.: "31/10/2026 27 - Tema" / "Orador público Nome (Congregação)" / "Presidente Nome" / "Leitor de A Sentinela Nome")
+function registrosRotulados(rows) {
+  const linhas = rows.map(r => r.map(c => c.t).join(' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  if (!linhas.some(l => /^orador( p[úu]blico)?\b/i.test(l))) return null;
+  const regs = []; let g = null;
+  for (const l of linhas) {
+    const md = l.match(/^(\d{1,2}[\/.\-]\d{1,2}(?:[\/.\-]\d{2,4})?)\s+(.*)$/);
+    if (md && acharData(md[1])) { const t = md[2].match(/^(\d{1,3})\s*[-–.]\s*(.+)$/); g = { data: acharData(md[1]), v: { numero: t ? t[1] : '', tema: (t ? t[2] : md[2]).trim() } }; regs.push(g); continue; }
+    if (!g) continue;
+    let m;
+    if ((m = l.match(/^orador(?: p[úu]blico)?:?\s*(.*?)\s*(?:\(([^)]*)\))?\s*$/i))) { const nome = m[1].trim();
+      if (nome && !/assembl|congresso|visita/i.test(nome)) { g.v.orador = nome; if (m[2]) g.v.congregacao = m[2].trim(); } }
+    else if ((m = l.match(/^presidente:?\s*(.+)$/i))) g.v.presidente = m[1].trim();
+    else if ((m = l.match(/^leitor(?: de a sentinela)?:?\s*(.+)$/i))) g.v.leitor = m[1].trim();
+  }
+  if (!regs.length) return null;
+  const map = ['tema', 'numero', 'orador', 'congregacao', 'presidente', 'leitor'];
+  return { regs: regs.map(g => ({ data: g.data, vals: map.map(k => g.v[k] || '') })), cols: map.map((k, i) => ({ x: i, n: 1 })), map };
+}
 function montarRegistros(rows) {
+  const rot = registrosRotulados(rows); if (rot) return rot;
   const regs = []; let head = null;
   rows.forEach(r => {
     const di = r.findIndex(c => acharData(c.t));
