@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.13.3';
+const VERSAO = '1.13.4';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -1351,6 +1351,23 @@ function htmlToText(html) {
   doc.querySelectorAll('p,h1,h2,h3,h4,h5,li,header,section,div,br,tr').forEach(el => el.insertAdjacentText('beforebegin', '\n'));
   return doc.body ? doc.body.textContent : '';
 }
+// texto do PDF na ordem de leitura (uma linha por linha do PDF; colunas lidas separadas)
+async function pdfTexto(buf) {
+  if (!window.pdfjsLib) { await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise; const out = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const pg = await doc.getPage(p), W = pg.getViewport({ scale: 1 }).width, tc = await pg.getTextContent();
+    const its = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ x: i.transform[4], y: i.transform[5], t: i.str }));
+    // separa em colunas quando a página tem texto dos dois lados
+    const meio = W / 2, esq = its.filter(i => i.x < meio - 10), dir = its.filter(i => i.x >= meio - 10);
+    const blocos = esq.length > 8 && dir.length > 8 ? [esq, dir] : [its];
+    for (const b of blocos) {
+      const linhas = {}; b.forEach(i => { const k = Math.round(i.y / 2.5); (linhas[k] = linhas[k] || []).push(i); });
+      Object.keys(linhas).map(Number).sort((a, c) => c - a).forEach(k => out.push(linhas[k].sort((a, c) => a.x - c.x).map(i => i.t).join(' ').replace(/\s+/g, ' ').trim()));
+    }
+  }
+  return out.join('\n');
+}
 async function parseEpub(buf, ref) {
   if (!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
   const zip = await JSZip.loadAsync(buf);
@@ -1396,7 +1413,7 @@ function abrirImportar() {
   m.innerHTML = `<div class="sheet"><h2>Importar apostila</h2>
     <p class="small muted" style="margin-top:0">Preenche os temas, a leitura da semana, os cânticos e o tempo de cada parte da reunião Vida e Ministério. As designações que já estiverem preenchidas são mantidas.</p>
     <div class="card"><h3>1. Baixar do jw.org</h3><div class="row"><select id="ap_iss" style="flex:1;border:2px solid var(--ink);padding:9px;background:#fff">${iss.map(k => `<option value="${k}">${esc(issueLabel(k))}</option>`).join('')}</select><button class="btn sm" id="ap_down">Baixar</button></div></div>
-    <div class="card"><h3>2. Arquivo EPUB da apostila</h3><p class="small muted" style="margin:0 0 8px">No jw.org: Biblioteca › Apostila Vida e Ministério › baixar em EPUB.</p><input type="file" id="ap_file" accept=".epub,application/epub+zip"></div>
+    <div class="card"><h3>2. Arquivo PDF ou EPUB da apostila</h3><p class="small muted" style="margin:0 0 8px">No jw.org ou no JW Library: Apostila Vida e Ministério › baixar em PDF (ou EPUB). Depois escolha o arquivo aqui.</p><input type="file" id="ap_file" accept=".pdf,application/pdf,.epub,application/epub+zip"></div>
     <div class="card"><h3>3. Colar texto do JW Library</h3><p class="small muted" style="margin:0 0 8px">Abra a semana na apostila, selecione todo o texto, copie e cole aqui.</p><textarea id="ap_txt" style="width:100%;min-height:110px;border:2px solid var(--ink);padding:8px" placeholder="23-29 DE NOVEMBRO&#10;LAMENTAÇÕES 1-2&#10;Cântico 28 e oração..."></textarea><button class="btn sm sec2" id="ap_read" style="margin-top:8px">Ler texto</button></div>
     <div id="ap_res"></div>
     <div class="row" style="margin-top:6px"><span class="sp"></span><button class="btn sec2" id="ap_close">Fechar</button></div></div>`;
@@ -1414,7 +1431,8 @@ function abrirImportar() {
   $('#ap_down').onclick = async () => { busy('Baixando a apostila do jw.org…');
     try { show(await baixarApostila($('#ap_iss').value)); } catch (e) { console.error(e); res.innerHTML = '<div class="banner">Não consegui baixar direto por aqui. Baixe o arquivo EPUB no jw.org e use a opção 2, ou cole o texto na opção 3.</div>'; } };
   $('#ap_file').onchange = async e => { const f = e.target.files[0]; if (!f) return; busy('Lendo o arquivo…');
-    try { show(await parseEpub(await f.arrayBuffer(), today())); } catch (er) { console.error(er); res.innerHTML = '<div class="banner">Não consegui ler esse arquivo. Ele precisa ser o EPUB da apostila.</div>'; } };
+    try { const buf = await f.arrayBuffer(), pdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf' || new TextDecoder().decode(new Uint8Array(buf.slice(0, 5))) === '%PDF-';
+      show(pdf ? parseApostila(await pdfTexto(buf), today()) : await parseEpub(buf, today())); } catch (er) { console.error(er); res.innerHTML = '<div class="banner">Não consegui ler esse arquivo. Ele precisa ser o PDF ou o EPUB da apostila Vida e Ministério.</div>'; } };
   $('#ap_read').onclick = () => show(parseApostila($('#ap_txt').value, today()));
 }
 
