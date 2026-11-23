@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.13.1';
+const VERSAO = '1.13.2';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -173,7 +173,7 @@ function seedDemo() {
         { s: 'ministerio', t: 'O que você diria?', m: 5, n: 'Rafael Menezes' },
         { s: 'vida', t: 'Não se esqueça de nossos irmãos e irmãs inativos', m: 15, n: w === 0 ? 'Jonata Lima' : 'Hugo Santos' },
         { s: 'vida', t: 'Estudo Bíblico de Congregação', m: 30, n: 'Ruan Vieira', n2: 'Nicolas dos Anjos' }] });
-    put('fds', null, { data: sab, tema: ['Você pode encarar o futuro com confiança!', 'Por que devemos confiar na Bíblia?', 'Seja corajoso e confie em Jeová', 'O que significa amar o próximo?'][w], numero: ['108', '52', '87', '160'][w], orador: ['Rodrigo Ávila', 'Paulo Henrique', 'Antônio Ferreira', 'Marcos Lima'][w], congregacao: ['Central', 'Cidade Nova', 'Nova Marabá', 'São Félix'][w], presidente: w === 1 ? 'Jonata Lima' : 'Rian Ferreira', leitor: 'Ruan Vieira', hospitalidade: w === 0 ? 'Disponível' : 'Família Menezes' });
+    put('fds', null, { data: sab, tema: ['Você pode encarar o futuro com confiança!', 'Por que devemos confiar na Bíblia?', 'Seja corajoso e confie em Jeová', 'O que significa amar o próximo?'][w], numero: ['108', '52', '87', '160'][w], orador: ['Rodrigo Ávila', 'Paulo Henrique', 'Antônio Ferreira', 'Marcos Lima'][w], congregacao: ['Central', 'Cidade Nova', 'Nova Marabá', 'São Félix'][w], presidente: w === 1 ? 'Jonata Lima' : 'Rian Ferreira', leitor: 'Ruan Vieira' });
     put('designacoes', null, { data: qui, indicadores: 'Carlos Pio, Nicolas dos Anjos', som: w === 0 ? 'Jonata Lima' : 'Rafael Menezes', microfones: 'Rian Ferreira, Sander Souza', palco: 'Eduardo Menezes', limpeza: 'Grupo ' + (w % 3 + 1) });
     put('designacoes', null, { data: sab, indicadores: w === 0 ? 'Jonata Lima, Hugo Santos' : 'Hugo Santos, Carlos Pio', som: 'Rafael Menezes', microfones: 'Nicolas dos Anjos, Rian Ferreira', palco: 'Eduardo Menezes', limpeza: 'Grupo ' + ((w + 1) % 3 + 1) });
   }
@@ -581,7 +581,7 @@ VIEWS.fdsDet = () => {
     <div class="sbar" style="--c:#1e3a99">DISCURSO PÚBLICO<button class="sbar-btn" data-act="copyFds" data-id="${esc(x.id)}" aria-label="Copiar">${IC.copy}</button></div>
     <div class="kvs">${kv('Título', esc(x.tema || '—') + (x.numero ? ` (${esc(x.numero)})` : ''))}${kv('Orador', esc(x.orador || '—'))}${kv('Congregação', esc(x.congregacao || '—'))}</div>
     <div class="sbar" style="--c:#4f68b5">TAREFAS DE FIM DE SEMANA</div>
-    <div class="kvs">${kv('Presidente', nameTag(x.presidente))}${kv('Leitor de A Sentinela', nameTag(x.leitor))}${kv('Hospitalidade', esc(x.hospitalidade || '—'))}</div>
+    <div class="kvs">${kv('Presidente', nameTag(x.presidente))}${kv('Leitor de A Sentinela', nameTag(x.leitor))}</div>
     <div class="sbar" style="--c:#0d0d0d">DESIGNAÇÕES MECÂNICAS</div>
     <div class="kvs">${mec ? kv('Indicadores', nameTag(mec.indicadores)) + kv('Áudio e vídeo', nameTag(mec.som)) + kv('Microfones volantes', nameTag(mec.microfones)) + kv('Palco', nameTag(mec.palco)) : '<span class="muted">Nenhum</span>'}</div>
     <div class="sbar" style="--c:#2b6f76">LIMPEZA E CUIDADOS COM O JARDIM</div>
@@ -1002,7 +1002,7 @@ VIEWS.config = () => {
 // ================= formulários =================
 const FORMS = {
   vmc: { title: 'Vida e Ministério', fields: [['data', 'Data', 'date'], ['hora', 'Horário (vazio = padrão)', 'time'], ['leitura', 'Leitura semanal (ex.: LAMENTAÇÕES 1-2)', 'text'], ['canticoIni', 'Cântico inicial', 'text'], ['presidente', 'Presidente', 'pub'], ['oracaoIni', 'Oração inicial', 'pub'], ['partes', 'Partes', 'parts'], ['canticoMeio', 'Cântico do meio', 'text'], ['canticoFim', 'Cântico final', 'text'], ['oracaoFim', 'Oração final', 'pub']] },
-  fds: { title: 'Fim de semana', fields: [['data', 'Data', 'date'], ['hora', 'Horário (vazio = padrão)', 'time'], ['tema', 'Título do discurso', 'text'], ['numero', 'Número do esboço', 'text'], ['orador', 'Orador', 'text'], ['congregacao', 'Congregação do orador', 'text'], ['presidente', 'Presidente', 'pub'], ['leitor', 'Leitor de A Sentinela', 'pub'], ['hospitalidade', 'Hospitalidade', 'text']] },
+  fds: { title: 'Fim de semana', fields: [['data', 'Data', 'date'], ['hora', 'Horário (vazio = padrão)', 'time'], ['tema', 'Título do discurso', 'text'], ['numero', 'Número do esboço', 'text'], ['orador', 'Orador', 'text'], ['congregacao', 'Congregação do orador', 'text'], ['presidente', 'Presidente', 'pub'], ['leitor', 'Leitor de A Sentinela', 'pub']] },
   designacoes: { title: 'Designações mecânicas', fields: [['data', 'Data', 'date'], ['indicadores', 'Indicadores', 'pub'], ['som', 'Áudio e vídeo', 'pub'], ['microfones', 'Microfones volantes', 'pub'], ['palco', 'Palco', 'pub'], ['limpeza', 'Limpeza e jardim (grupo)', 'text']] },
   saidas: { title: 'Saída de campo', fields: [['dia', 'Dia da semana', 'select', ORD.map(d => d[0].toUpperCase() + d.slice(1))], ['hora', 'Horário', 'time'], ['local', 'Local', 'text'], ['dirigente', 'Dirigente', 'pub'], ['grupo', 'Grupo', 'grupo'], ['obs', 'Observação', 'text']] },
   saidasAlt: { title: 'Mudança na saída (só um dia)', fields: [['data', 'Data', 'date'], ['saida', 'Qual saída', 'select', () => [['', 'Nova saída extra neste dia'], ...[...D.saidas].sort((a, b) => ordDia(a.dia) - ordDia(b.dia)).map(x => [x.id, `${x.dia} ${x.hora} · ${x.local}`])]], ['tipo', 'O que muda', 'select', ['Alterada', 'Cancelada']], ['hora', 'Novo horário (vazio = mantém)', 'time'], ['local', 'Novo local (vazio = mantém)', 'text'], ['dirigente', 'Dirigente (vazio = mantém)', 'pub'], ['obs', 'Observação', 'text']] },
@@ -1193,8 +1193,8 @@ async function pdfRows(buf) {
   }
   return rows;
 }
-const FDS_CAMPOS = [['', 'Ignorar'], ['tema', 'Tema do discurso'], ['numero', 'Número do esboço'], ['orador', 'Orador'], ['congregacao', 'Congregação'], ['presidente', 'Presidente'], ['leitor', 'Leitor de A Sentinela'], ['hospitalidade', 'Hospitalidade']];
-const HEAD_RE = { tema: /tema|t[íi]tulo|discurso/i, numero: /^n[º°o.]?$|esbo[çc]o|n[úu]mero/i, orador: /orador/i, congregacao: /congrega/i, presidente: /presid/i, leitor: /leitor/i, hospitalidade: /hospital/i };
+const FDS_CAMPOS = [['', 'Ignorar'], ['tema', 'Tema do discurso'], ['numero', 'Número do esboço'], ['orador', 'Orador'], ['congregacao', 'Congregação'], ['presidente', 'Presidente'], ['leitor', 'Leitor de A Sentinela']];
+const HEAD_RE = { tema: /tema|t[íi]tulo|discurso/i, numero: /^n[º°o.]?$|esbo[çc]o|n[úu]mero/i, orador: /orador/i, congregacao: /congrega/i, presidente: /presid/i, leitor: /leitor/i };
 function montarRegistros(rows) {
   const regs = []; let head = null;
   rows.forEach(r => {
@@ -1221,10 +1221,37 @@ function montarRegistros(rows) {
     const num = cols.findIndex((c, i) => regs.filter(g => /^\d{1,3}$/.test(g.vals[i])).length > regs.length / 2); if (num >= 0) map[num] = 'numero';
     const free = cols.map((c, i) => i).filter(i => !map[i]);
     const tema = free.sort((a, b) => avg(b) - avg(a))[0]; if (tema != null) map[tema] = 'tema';
-    const ordem = ['orador', 'congregacao', 'presidente', 'leitor', 'hospitalidade'];
+    const ordem = ['orador', 'congregacao', 'presidente', 'leitor'];
     cols.forEach((c, i) => { if (!map[i] && ordem.length && avg(i) > 0) map[i] = ordem.shift(); });
   }
+  // PDF que vem com a linha inteira junta: separa "Nº - Tema Orador (Congregação) Presidente Leitor"
+  const ti = map.indexOf('tema');
+  regs.forEach(g => { if (ti < 0) return; const linha = [g.vals[ti], ...cols.map((c, i) => i !== ti && !map[i] ? g.vals[i] : '')].filter(Boolean).join(' ');
+    const p = separarLinhaFds(linha); if (!p) return; g.auto = p; });
+  if (regs.some(g => g.auto)) {
+    const novos = ['numero', 'orador', 'congregacao', 'presidente', 'leitor'];
+    novos.forEach(k => { if (!map.includes(k)) { cols.push({ x: 9999, n: 0, auto: k }); map.push(k); } });
+    regs.forEach(g => { while (g.vals.length < cols.length) g.vals.push(''); if (!g.auto) return; g.vals[ti] = g.auto.tema;
+      Object.entries(g.auto).forEach(([k, v]) => { if (k !== 'tema' && v) { const i = map.indexOf(k); if (i >= 0 && !g.vals[i]) g.vals[i] = v; } }); });
+  }
   return { regs: regs.filter(g => g.data), cols, map };
+}
+function separarLinhaFds(t) {
+  const m = String(t || '').match(/^\s*(?:(\d{1,3})\s*[-–.]\s*)?(.+?)\s*\(([^)]{2,60})\)\s*(.*)$/); if (!m) return null;
+  const [, numero, antes, congregacao, depois] = m;
+  // tema x orador: corta na última pontuação; se não tiver, os últimos nomes com letra maiúscula são o orador
+  let tema, orador; const pont = antes.match(/^(.*[?!.])\s+(.+)$/);
+  if (pont && pont[2].split(' ').length <= 5) { tema = pont[1]; orador = pont[2]; }
+  else { const w = antes.split(' '); let k = w.length; const nome = x => /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(x), lig = x => /^(de|da|do|dos|das|e)$/.test(x);
+    let nomes = 0; while (k > 1 && nomes < 2) { if (nome(w[k - 1])) { nomes++; k--; } else if (lig(w[k - 1]) && nomes > 0 && k - 1 > 0 && nome(w[k - 2])) k--; else break; }
+    if (k === w.length) return null; tema = w.slice(0, k).join(' '); orador = w.slice(k).join(' '); }
+  // presidente e leitor: usa os nomes cadastrados; senão divide ao meio
+  let presidente = '', leitor = ''; const resto = depois.trim();
+  if (resto) { const nn = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const p = D.publicadores.map(x => x.nome).filter(n => nn(resto).startsWith(nn(n) + ' ') || nn(resto) === nn(n)).sort((a, b) => b.length - a.length)[0];
+    if (p) { presidente = resto.slice(0, p.length).trim(); leitor = resto.slice(p.length).trim(); }
+    else { const w = resto.split(' '), h = Math.ceil(w.length / 2); presidente = w.slice(0, h).join(' '); leitor = w.slice(h).join(' '); } }
+  return { numero: numero || '', tema: tema.trim(), orador: orador.trim(), congregacao: congregacao.trim(), presidente, leitor };
 }
 function abrirImportarFds() {
   const m = $('#modal');
