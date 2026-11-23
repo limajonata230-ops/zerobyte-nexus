@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.8.0';
+const VERSAO = '1.9.0';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -133,6 +133,22 @@ const cargoLabel = p => [isSupremo(p) ? 'Admin supremo' : '', isElder(p) ? 'Anci
 const eventoSemana = s => { if (!s) return null; const a = monday(s), b = addDays(a, 6); return D.anuncios.find(x => x.tipo === 'Evento' && x.data >= a && x.data <= b && x.cancela); };
 
 const TERR_IMG = n => 'img/territorio_' + n + '.jpg';
+// territórios reais da congregação (registro S-13) com os mapas de satélite
+function terrIniciais(put) {
+  const REG = [['01', 'Michael', '2026-03-01', '2026-03-01'], ['02', 'Marcello', '2026-04-12', ''], ['03', 'Marcello', '2026-04-12', ''], ['04', 'Marcello', '2026-02-28', '2026-02-28'],
+    ['05', 'Marcello', '2026-02-28', '2026-02-28'], ['06', 'Marcello', '2026-04-05', ''], ['07', 'Marcello', '2026-03-22', '2026-03-22'], ['08', 'Jonatã', '2026-03-06', '2026-03-06'],
+    ['09', 'Pedro Augusto', '2026-03-29', ''], ['10'], ['11', 'Jonatã', '2026-03-13', '2026-03-20'], ['12', 'Pedro Augusto', '2026-03-14', '2026-03-21'], ['13', 'Pedro Augusto', '2026-03-14', '2026-03-21'],
+    ['14', 'Pedro Augusto', '2026-06-14', '2026-08-23'], ['15', 'Michael', '2026-03-31', ''], ['16', 'Sander', '2026-02-04', ''], ['17', 'Hugo', '2026-03-12', ''], ['18', 'Gabriel', '2026-03-18', '2026-03-18'],
+    ['19', 'Sander', '2026-04-15', '2026-04-15'], ['20', 'Marcello', '2026-03-11', '2026-03-11'], ['21', 'Hugo', '2026-03-22', ''], ['22', 'Hugo', '2026-03-22', ''],
+    ['23'], ['24'], ['25'], ['26'], ['27'], ['28']];
+  const IMGS = {}; for (let i = 1; i <= 22; i++) { const n = String(i).padStart(2, '0'); IMGS[n] = TERR_IMG(n); }
+  const NOMES = { '04': 'Velha Marabá' };
+  return Promise.all(REG.map(([n, dir, ini, fim]) => {
+    const t = { numero: n, nome: NOMES[n] || '', grupo: '', imagem: IMGS[n] || '', historico: [] };
+    if (dir) { t.dirigente = dir; t.inicio = ini; t.termino = fim || ''; if (fim) t.historico = [{ dirigente: dir, inicio: ini, termino: fim }]; }
+    return put('territorios', 't' + n, t);
+  }));
+}
 // ================= dados de demonstração =================
 function seedDemo() {
   if (store.list('config').length && LS.get('cg_seedv', 1) === 12) return;
@@ -183,19 +199,7 @@ function seedDemo() {
   put('relatorios', mesAnterior() + '_p2', { mes: mesAnterior(), pub: 'p2', nome: 'Eduardo Menezes', participou: true, estudos: 1, horas: 0, enviadoEm: today() });
   put('solicitacoes', null, { tipo: 'pioneiro', pub: 'p3', nome: 'Amanda Silva', meses: [mesAtual()], continuo: false, horas: 30, obs: '', status: 'pendente', criado: today() });
   // registro real (S-13, ano de serviço 2026): [número, dirigente, designação, conclusão]
-  const REG = [['01', 'Michael', '2026-03-01', '2026-03-01'], ['02', 'Marcello', '2026-04-12', ''], ['03', 'Marcello', '2026-04-12', ''], ['04', 'Marcello', '2026-02-28', '2026-02-28'],
-    ['05', 'Marcello', '2026-02-28', '2026-02-28'], ['06', 'Marcello', '2026-04-05', ''], ['07', 'Marcello', '2026-03-22', '2026-03-22'], ['08', 'Jonatã', '2026-03-06', '2026-03-06'],
-    ['09', 'Pedro Augusto', '2026-03-29', ''], ['10'], ['11', 'Jonatã', '2026-03-13', '2026-03-20'], ['12', 'Pedro Augusto', '2026-03-14', '2026-03-21'], ['13', 'Pedro Augusto', '2026-03-14', '2026-03-21'],
-    ['14', 'Pedro Augusto', '2026-06-14', '2026-08-23'], ['15', 'Michael', '2026-03-31', ''], ['16', 'Sander', '2026-02-04', ''], ['17', 'Hugo', '2026-03-12', ''], ['18', 'Gabriel', '2026-03-18', '2026-03-18'],
-    ['19', 'Sander', '2026-04-15', '2026-04-15'], ['20', 'Marcello', '2026-03-11', '2026-03-11'], ['21', 'Hugo', '2026-03-22', ''], ['22', 'Hugo', '2026-03-22', ''],
-    ['23'], ['24'], ['25'], ['26'], ['27'], ['28']];
-  const IMGS = {}; for (let i = 1; i <= 22; i++) { const n = String(i).padStart(2, '0'); IMGS[n] = TERR_IMG(n); }
-  const NOMES = { '04': 'Velha Marabá' };
-  REG.forEach(([n, dir, ini, fim]) => {
-    const t = { numero: n, nome: NOMES[n] || '', grupo: '', imagem: IMGS[n] || '', historico: [] };
-    if (dir) { t.dirigente = dir; t.inicio = ini; t.termino = fim || ''; if (fim) t.historico = [{ dirigente: dir, inicio: ini, termino: fim }]; }
-    put('territorios', 't' + n, t);
-  });
+  terrIniciais(put);
   store._save();
 }
 
@@ -323,6 +327,7 @@ function bindLogin() {
     const nome = $('#lg_nome').value.trim(), me = $('#lg_me').value.trim(), padm = genPin();
     if (!nome || !me) return toast('Preencha tudo');
     await store.put('config', 'app', { ...cfg(), nome, horaVmc: '19:30', horaFds: '19:00', relatoriosAtivos: true });
+    await terrIniciais((c, i, o) => store.put(c, i, o));
     const id = await store.put('publicadores', null, { nome: me, grupo: '', tipo: 'Publicador', priv: '', cargos: ['admin'], supremo: true, pin: padm });
     S.me = id; LS.set('cg_me', id); render();
     ask('Seu PIN pessoal', `<p>O app gerou seu PIN automaticamente:</p><div class="pin-big">${padm}</div><p class="small muted">Anote. É com ele que você entra no app. Como administrador, você vê o PIN de todos em Mais › Publicadores.</p>`, () => true, 'Anotei');
