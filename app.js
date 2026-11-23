@@ -1,7 +1,7 @@
 /* App da Congregação — PWA (modo demonstração local ou Firebase) */
 (function () {
 'use strict';
-const VERSAO = '1.12.0';
+const VERSAO = '1.12.1';
 
 // ================= utilidades =================
 const $ = (s, r = document) => r.querySelector(s);
@@ -1004,7 +1004,7 @@ function openForm(col, item) {
   const m = $('#modal');
   m.innerHTML = `<div class="sheet"><h2>${item ? 'Editar' : 'Novo'}: ${F.title}</h2>${F.fields.map(field).join('')}
     <datalist id="dl_pubs">${pubs().map(p => `<option value="${esc(p.nome)}">`).join('')}</datalist><datalist id="dl_grupos">${grupos.map(g => `<option value="${esc(g)}">`).join('')}</datalist>
-    <div class="row" style="margin-top:6px">${item ? '<button class="btn bad" id="ff_del">Excluir</button>' : ''}<span class="sp"></span><button class="btn sec2" id="ff_cancel">Cancelar</button><button class="btn" id="ff_save">Salvar</button></div></div>`;
+    <div class="row sheet-actions">${item ? '<button class="btn bad" id="ff_del">Excluir</button>' : ''}<span class="sp"></span><button class="btn sec2" id="ff_cancel">Cancelar</button><button class="btn" id="ff_save">Salvar</button></div></div>`;
   m.classList.remove('hidden'); m.onclick = e => { if (e.target === m) closeModal(); };
   $('#ff_cancel').onclick = closeModal;
   const ap = $('#ff_addpart'); if (ap) ap.onclick = () => $('#ff_parts').insertAdjacentHTML('beforeend', partRow({ s: 'vida' }));
