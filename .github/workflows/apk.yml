@@ -1,0 +1,71 @@
+name: Gerar APK Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apk.yml', 'android-res/**']
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+
+      - name: Criar projeto Capacitor
+        run: |
+          mkdir -p wrap/www && cd wrap
+          npm init -y >/dev/null
+          npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          echo '<!doctype html><meta charset="utf-8"><title>ZeroByte Nexus</title>' > www/index.html
+          cat > capacitor.config.json <<'JSON'
+          {
+            "appId": "io.github.limajonata230.zerobytenexus",
+            "appName": "ZeroByte Nexus",
+            "webDir": "www",
+            "backgroundColor": "#0d0d0d",
+            "server": { "url": "https://limajonata230-ops.github.io/zerobyte-nexus/", "androidScheme": "https" },
+            "android": { "allowMixedContent": false }
+          }
+          JSON
+          npx cap add android
+
+      - name: Ícones, permissões e versão
+        run: |
+          cd wrap/android/app/src/main
+          rm -rf res/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp $GITHUB_WORKSPACE/android-res/mipmap-$d/*.png res/mipmap-$d/; done
+          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />#' AndroidManifest.xml
+          grep -n permission AndroidManifest.xml
+          cd ../..
+          V=$(( $(date +%s) / 60 - 29000000 ))
+          sed -i "s/versionCode 1/versionCode $V/; s/versionName \"1.0\"/versionName \"1.9.$V\"/" build.gradle
+
+      - name: Compilar
+        run: cd wrap/android && ./gradlew assembleRelease --no-daemon -q
+
+      - name: Assinar
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          IN=wrap/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          P=$(openssl rand -hex 16)
+          keytool -genkeypair -keystore k.p12 -storetype PKCS12 -alias zb -keyalg RSA -keysize 2048 -validity 10000 -storepass "$P" -keypass "$P" -dname "CN=ZeroByte Nexus, C=BR"
+          $BT/zipalign -f 4 $IN aligned.apk
+          $BT/apksigner sign --ks k.p12 --ks-key-alias zb --ks-pass pass:$P --key-pass pass:$P --out ZeroByte-Nexus.apk aligned.apk
+          $BT/apksigner verify ZeroByte-Nexus.apk && ls -la ZeroByte-Nexus.apk && rm -f k.p12
+
+      - name: Publicar na página de downloads
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: ZeroByte Nexus para Android
+          body: Baixe o arquivo ZeroByte-Nexus.apk no celular Android e toque nele para instalar.
+          files: ZeroByte-Nexus.apk
+          make_latest: true

@@ -318,6 +318,7 @@ function loginHTML() {
         <div class="pin-boxes" id="pin_boxes">${'<i></i>'.repeat(4)}</div>
         <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-k="${n}">${n}</button>`).join('')}<span></span><button data-k="0">0</button><button data-k="del" aria-label="Apagar">⌫</button></div>
         <p class="small muted pin-help">Não sabe seu PIN? Peça a um administrador da congregação.</p>
+        ${/Android/i.test(navigator.userAgent) && !window.Capacitor ? '<a class="btn sm ghost-ink" style="margin-top:10px;text-decoration:none" href="https://github.com/limajonata230-ops/zerobyte-nexus/releases/download/android-latest/ZeroByte-Nexus.apk">📲 Baixar o app para Android</a>' : ''}
         ${demo}
       </div></div>`;
 }
